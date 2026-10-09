@@ -1,0 +1,1253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prioritizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<style>
+:root{
+  --bg:#FBF7F3; --surface:#FFFFFF; --ink:#3B3235; --muted:#8E8285; --faint:#B9AEB0; --line:#EFE6E1; --hover:#F7F1EE;
+  --accent:#A86F84; --accent-soft:#F4E6EA; --danger:#B4505F;
+  --blush:#F7DEE2; --sage:#DFEADB; --lavender:#E7E0F2; --butter:#F8EDC9; --sky:#DCE8F1; --peach:#FAE2D3; --stone:#ECE6E3;
+  --shadow-sm:0 1px 2px rgba(59,50,53,.06);
+  --shadow:0 1px 2px rgba(59,50,53,.05),0 6px 18px -6px rgba(59,50,53,.14);
+  --shadow-lg:0 2px 4px rgba(59,50,53,.06),0 18px 40px -10px rgba(59,50,53,.24);
+  --gutter:clamp(.9rem,2.5vw,2rem);
+  --note-w:clamp(8.5rem,13vw,13.5rem);
+}
+*{box-sizing:border-box}
+html{font-size:clamp(13px,.35vw + 10.5px,16px)}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 1rem/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+.serif{font-family:Fraunces,Georgia,serif}
+svg{display:block}
+
+/* header */
+.top{display:flex;align-items:center;gap:.75rem 1.5rem;flex-wrap:wrap;padding:1rem var(--gutter) .6rem}
+.brand{font-family:Fraunces,Georgia,serif;font-size:1.45rem;font-weight:500;letter-spacing:-.01em;display:flex;align-items:center;gap:.55rem}
+.brand i{width:.55rem;height:.55rem;border-radius:50%;background:var(--accent);box-shadow:.7rem 0 0 var(--blush)}
+.brand span{margin-left:.7rem}
+.views{display:flex;background:#F3ECE7;border-radius:999px;padding:3px;gap:2px;overflow-x:auto;scrollbar-width:none;max-width:100%}
+.views button{padding:.42rem .95rem;border-radius:999px;color:var(--muted);font-weight:500;font-size:.9rem;white-space:nowrap;transition:background .15s,color .15s}
+.views button:hover{color:var(--ink)}
+.views button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+.actions{margin-left:auto;display:flex;gap:.45rem;align-items:center}
+.saved{font-size:.78rem;color:var(--faint);margin-right:.35rem;white-space:nowrap}
+.btn{padding:.45rem .85rem;border-radius:10px;font-size:.88rem;font-weight:500;border:1px solid var(--line);background:var(--surface);transition:border-color .15s,background .15s;white-space:nowrap}
+.btn:hover{border-color:#E0D2CC}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.primary:hover{background:#2A2426}
+.btn.primary.danger{background:var(--danger);border-color:var(--danger)}
+.btn.text-danger{border-color:transparent;color:var(--danger);padding-left:.4rem;padding-right:.4rem}
+.btn.text-danger:hover{background:#FBEFF1}
+.pill{padding:.28rem .7rem;border-radius:999px;font-size:.82rem;font-weight:500;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.pill:hover{border-color:#D9C3CB;background:var(--accent-soft)}
+
+/* list tabs */
+.lists{padding:0 var(--gutter);border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:.15rem;overflow-x:auto;scrollbar-width:none;align-items:stretch}
+.tab{position:relative;padding:.55rem .55rem .65rem .85rem;color:var(--muted);font-weight:500;white-space:nowrap;display:flex;align-items:center;gap:.4rem;border-radius:10px 10px 0 0;cursor:pointer;transition:color .15s,background .15s;user-select:none}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--ink)}
+.tab.on::after{content:"";position:absolute;left:.85rem;right:.85rem;bottom:0;height:2px;background:var(--accent);border-radius:2px}
+.tab .n,.chip .n{font-size:.72rem;color:var(--faint);font-weight:500}
+.more{width:1.4rem;height:1.4rem;border-radius:6px;display:grid;place-items:center;color:var(--faint);opacity:0;cursor:pointer;transition:opacity .15s}
+.more svg{width:.9rem;height:.9rem}
+.tab:hover .more,.tab.on .more,.chip.on .more{opacity:1}
+.more:hover{background:var(--hover);color:var(--ink)}
+.tab.add{color:var(--faint);padding:.55rem .6rem .65rem}
+.tab.add svg{width:1rem;height:1rem}
+.tab.add:hover{color:var(--accent)}
+.drop-target{background:var(--accent-soft)!important;color:var(--ink)!important}
+.subtabs{display:flex;gap:.4rem;align-items:center;padding:.55rem 0;flex-wrap:wrap}
+.chip{display:flex;align-items:center;gap:.35rem;padding:.24rem .7rem;border-radius:999px;font-size:.82rem;color:var(--muted);border:1px solid var(--line);background:var(--surface);cursor:pointer;user-select:none;transition:.15s}
+.chip:hover{color:var(--ink);border-color:#E0D2CC}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip.on .n{color:rgba(255,255,255,.6)}
+.chip.on .more{color:rgba(255,255,255,.7);width:1.1rem;height:1.1rem;margin-right:-.3rem}
+.chip.on .more:hover{background:rgba(255,255,255,.15);color:#fff}
+.chip.add{border-style:dashed;color:var(--faint)}
+.chip.add:hover{color:var(--accent);border-color:var(--accent)}
+.toggle{margin-left:auto;display:flex;align-items:center;gap:.45rem;font-size:.82rem;color:var(--muted);cursor:pointer;user-select:none}
+.toggle input{accent-color:var(--accent);width:.95rem;height:.95rem;margin:0}
+
+/* quick add */
+.quickadd{padding:.9rem var(--gutter) .5rem;display:flex;gap:.9rem;align-items:center;flex-wrap:wrap}
+.quickadd[hidden]{display:none}
+.quickadd .field{flex:1 1 18rem;max-width:44rem;display:flex;align-items:center;gap:.45rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.1rem .85rem .1rem .4rem;box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s}
+.addbtn{width:1.9rem;height:1.9rem;border-radius:8px;display:grid;place-items:center;color:var(--faint);flex:none;transition:.15s}
+.addbtn svg{width:1rem;height:1rem}
+.addbtn:hover{background:var(--accent-soft);color:var(--accent)}
+.quickadd input{flex:1;min-width:0;border:0;outline:0;background:transparent;padding:.62rem 0;font-size:.98rem}
+.quickadd input::placeholder{color:var(--faint);transition:opacity .15s}
+.quickadd input:focus::placeholder{opacity:0}
+.quickadd .field:focus-within{border-color:#D9C3CB;box-shadow:0 0 0 4px var(--accent-soft)}
+.quickadd .field:focus-within .addbtn{color:var(--accent)}
+
+/* icon buttons + tooltip */
+.ibtn{position:relative;width:2.2rem;height:2.2rem;border-radius:10px;display:grid;place-items:center;color:var(--muted);border:1px solid transparent;transition:.15s}
+.ibtn svg{width:1.15rem;height:1.15rem}
+.ibtn:hover{background:var(--surface);border-color:var(--line);color:var(--ink)}
+#syncBtn .mk-ok{display:none}
+#syncBtn[data-sync=on]{color:#6E9A69}
+#syncBtn[data-sync=on] .mk-ok{display:inline}
+#syncBtn[data-sync=on] .mk-x,#syncBtn[data-sync=na] .mk-x{display:none}
+#syncBtn[data-sync=off],#syncBtn[data-sync=paused],#syncBtn[data-sync=error]{color:var(--danger)}
+.rename{font:inherit;color:var(--ink);border:0;outline:2px solid var(--accent-soft);background:#fff;border-radius:6px;padding:0 .3rem;margin:0 -.3rem;min-width:3ch}
+.tip{position:fixed;z-index:70;max-width:15rem;background:var(--ink);color:#fff;font-size:.76rem;line-height:1.35;padding:.38rem .6rem;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .12s;box-shadow:var(--shadow)}
+.tip.show{opacity:1}
+
+/* main */
+main{flex:1;min-height:0;overflow:auto;padding:.5rem var(--gutter) 1.5rem}
+main.matrix-view{display:flex;flex-direction:column}
+.empty{color:var(--muted);text-align:center;padding:3.5rem 1rem;font-size:.95rem}
+.empty .serif{font-size:1.35rem;color:var(--ink);display:block;margin-bottom:.35rem}
+
+/* notes */
+.note{--c:var(--blush);position:relative;background:var(--c);border-radius:12px;padding:.7rem .85rem .72rem 2.3rem;box-shadow:var(--shadow);cursor:grab;transition:transform .16s ease,box-shadow .16s ease,opacity .16s,rotate .16s;user-select:none;outline:none}
+.note:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.note:focus-visible{box-shadow:0 0 0 3px var(--accent-soft),var(--shadow)}
+.note:active{cursor:grabbing}
+.note.dragging{opacity:.3}
+.c-blush{--c:var(--blush)}.c-sage{--c:var(--sage)}.c-lavender{--c:var(--lavender)}.c-butter{--c:var(--butter)}.c-sky{--c:var(--sky)}.c-peach{--c:var(--peach)}
+.check{width:1.1rem;height:1.1rem;flex:none;border-radius:50%;border:1.5px solid rgba(59,50,53,.32);display:grid;place-items:center;background:rgba(255,255,255,.6);color:var(--ink);transition:.15s}
+.check svg{width:.68rem;height:.68rem;opacity:0;transition:opacity .15s}
+.check:hover{border-color:var(--ink)}
+.check:hover svg{opacity:.35}
+.done .check,.arow .check{background:var(--ink);border-color:var(--ink);color:#fff}
+.done .check svg,.arow .check svg{opacity:1}
+.note .check{position:absolute;left:.75rem;top:.8rem}
+.note .title{font-weight:500;word-break:break-word;line-height:1.35}
+.note.done{opacity:.62}
+.note.done .title{text-decoration:line-through;text-decoration-thickness:1.5px;text-decoration-color:rgba(59,50,53,.55)}
+.note .snip{font-size:.8rem;color:rgba(59,50,53,.62);margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.meta{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.45rem}
+.tag{font-size:.68rem;font-weight:500;padding:.08rem .5rem;border-radius:999px;background:rgba(255,255,255,.62);color:rgba(59,50,53,.72);white-space:nowrap}
+.tag.list{background:rgba(59,50,53,.08)}
+
+/* list view */
+.rankbar{display:flex;align-items:center;gap:.6rem 1rem;flex-wrap:wrap;margin:.3rem 0 .9rem;max-width:52rem}
+.count{color:var(--muted);font-size:.86rem}
+.suggest{margin-left:auto;display:flex;align-items:center;gap:.35rem;font-size:.82rem;color:var(--muted);flex-wrap:wrap}
+.suggest>span{margin-right:.2rem}
+.ranklist{display:flex;flex-direction:column;gap:.55rem;max-width:52rem;min-height:3rem}
+.ranklist .note{padding-left:4.5rem}
+.ranklist .note .rank{position:absolute;left:.7rem;top:.5rem;width:1.7rem;text-align:right;font-family:Fraunces,Georgia,serif;font-size:1.15rem;color:rgba(59,50,53,.42)}
+.ranklist .note .check{left:2.95rem}
+
+/* matrix views */
+.tray{flex:none;border:1.5px dashed #E6D9D3;border-radius:16px;padding:.6rem .75rem .5rem;margin:.3rem 0 .9rem;background:rgba(255,255,255,.5);transition:border-color .15s,background .15s}
+.tray header{display:flex;align-items:baseline;gap:.6rem;font-size:.8rem;color:var(--muted)}
+.tray header b{font-weight:600;color:var(--ink);font-size:.85rem}
+.tray .notes{display:flex;gap:.6rem;overflow-x:auto;padding:.55rem .15rem .4rem}
+.tray .note{flex:0 0 var(--note-w)}
+.tray.empty{padding:.5rem .75rem}
+.tray.empty .notes{display:none}
+.tray.drop-over{border-color:var(--accent);background:var(--accent-soft)}
+.matrix{flex:1;min-height:26rem;display:grid;grid-template-columns:1.4rem 1fr;grid-template-rows:1.3rem 1fr;gap:.3rem .45rem}
+.axis-x{grid-column:2;grid-row:1;display:grid;grid-template-columns:1fr 1fr;gap:.8rem;align-items:end}
+.axis-y{grid-column:1;grid-row:2;display:grid;grid-template-rows:1fr 1fr;gap:.8rem}
+.axis-x span,.axis-y span{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);text-align:center;font-weight:500}
+.axis-y span{writing-mode:vertical-rl;transform:rotate(180deg);align-self:center;justify-self:center}
+.grid{grid-column:2;grid-row:2;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:.8rem;min-height:0}
+.quad{--q:var(--blush);background:color-mix(in srgb,var(--q) 40%,#fff);border-radius:18px;padding:.85rem .9rem .9rem;display:flex;flex-direction:column;min-height:0;border:1.5px solid transparent;transition:border-color .15s,background .15s}
+.quad.drop-over{border-color:color-mix(in srgb,var(--q) 100%,#3B3235 18%);background:color-mix(in srgb,var(--q) 70%,#fff)}
+.quad header{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap}
+.quad h3{margin:0;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:1.15rem;letter-spacing:-.01em}
+.quad small{color:var(--muted);font-size:.76rem}
+.quad .qn{font-size:.72rem;color:var(--muted);background:rgba(255,255,255,.65);border-radius:999px;padding:.02rem .45rem}
+.qadd{margin-left:auto;align-self:center;width:1.75rem;height:1.75rem;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+.qadd svg{width:.95rem;height:.95rem}
+.qadd:hover{background:rgba(255,255,255,.75);color:var(--ink)}
+.quad .notes{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--note-w),1fr));align-content:start;gap:.6rem;padding:.2rem .2rem .4rem}
+.quad .note:nth-child(3n+1),.tray .note:nth-child(3n+1){rotate:-.5deg}
+.quad .note:nth-child(3n+2),.tray .note:nth-child(3n+2){rotate:.45deg}
+.quad .note:hover,.tray .note:hover{rotate:0deg}
+.qhint{font-size:.78rem;color:color-mix(in srgb,var(--muted) 80%,transparent);padding:.2rem .1rem}
+.qform{grid-column:1/-1}
+.qform input{width:100%;border:1px solid rgba(59,50,53,.12);background:#fff;border-radius:10px;padding:.55rem .7rem;outline:none;box-shadow:var(--shadow-sm)}
+.qform input:focus{border-color:#D9C3CB;box-shadow:0 0 0 3px rgba(255,255,255,.7)}
+.q-do{--q:var(--blush)}.q-schedule{--q:var(--sage)}.q-delegate{--q:var(--butter)}.q-drop{--q:var(--stone)}
+.q-quick{--q:var(--sage)}.q-big{--q:var(--lavender)}.q-fill{--q:var(--sky)}.q-pit{--q:var(--peach)}
+
+/* archive */
+.archive{max-width:44rem}
+.arch-head{display:flex;align-items:center;gap:1rem;margin:.3rem 0 .4rem}
+.arch-head .btn{margin-left:auto}
+.day h4{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:1.02rem;margin:1.2rem 0 .5rem}
+.arow{--c:var(--blush);display:flex;align-items:center;gap:.75rem;padding:.55rem .6rem .55rem .8rem;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;margin-bottom:.4rem;cursor:pointer;transition:box-shadow .15s}
+.arow:hover{box-shadow:var(--shadow)}
+.arow .t{flex:1;min-width:0;text-decoration:line-through;text-decoration-color:rgba(59,50,53,.4);color:var(--muted);word-break:break-word}
+.icon-btn{width:1.9rem;height:1.9rem;border-radius:8px;display:grid;place-items:center;color:var(--faint);flex:none}
+.icon-btn svg{width:1rem;height:1rem}
+.icon-btn:hover{background:#FBEFF1;color:var(--danger)}
+
+/* modal */
+.modal{position:fixed;inset:0;display:none;z-index:50;padding:1rem}
+.modal.open{display:grid;place-items:center}
+.backdrop{position:absolute;inset:0;background:rgba(59,50,53,.22);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:fade .15s ease}
+.sheet{--c:var(--blush);position:relative;width:min(34rem,100%);max-height:calc(100vh - 2rem);overflow:auto;background:var(--surface);border-radius:20px;box-shadow:var(--shadow-lg);padding:1.3rem 1.4rem 1.1rem;animation:pop .18s ease}
+.sheet.editor{border-top:7px solid var(--c)}
+.sheet.small{width:min(26rem,100%)}
+.sheet h3{margin:0 0 .5rem;font-weight:500;font-size:1.25rem}
+.sheet p{margin:0 0 .5rem;color:var(--muted);font-size:.92rem}
+.sheet footer{display:flex;gap:.5rem;align-items:center;margin-top:1.1rem}
+.grow{flex:1}
+.ed-title{width:100%;border:0;outline:0;resize:none;font-size:1.35rem;font-weight:500;padding:.1rem 0;background:transparent;overflow:hidden;line-height:1.3}
+.ed-notes{width:100%;border:1px solid var(--line);border-radius:12px;outline:0;resize:vertical;padding:.6rem .75rem;font-size:.92rem;min-height:4.5rem;margin:.5rem 0 .4rem;background:#FFFCFA}
+.ed-notes:focus,.sheet input:focus,.sheet select:focus{border-color:#D9C3CB;box-shadow:0 0 0 3px var(--accent-soft)}
+.fld{margin-top:.85rem}
+.fld>label{display:block;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:.4rem}
+.swatches{display:flex;gap:.45rem}
+.sw{width:1.7rem;height:1.7rem;border-radius:50%;background:var(--c);border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.sw.on{box-shadow:0 0 0 2px var(--ink)}
+.seg{display:flex;flex-wrap:wrap;gap:.35rem}
+.seg button{padding:.32rem .75rem;border-radius:999px;font-size:.83rem;border:1px solid var(--line);color:var(--muted)}
+.seg button:hover{color:var(--ink);border-color:#E0D2CC}
+.seg button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.sheet select,.sheet input[type=text],.sheet input:not([type]){width:100%;border:1px solid var(--line);border-radius:10px;padding:.55rem .7rem;outline:0;background:#fff}
+.choice{display:grid;gap:.55rem;margin-top:.8rem}
+.opt{text-align:left;border:1px solid var(--line);border-radius:14px;padding:.75rem .9rem;display:grid;gap:.15rem;transition:.15s}
+.opt:hover{border-color:var(--accent);background:var(--accent-soft)}
+.opt b{font-weight:600}
+.opt span{font-size:.85rem;color:var(--muted)}
+
+/* menu + toast */
+.menu{position:fixed;z-index:40;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);padding:.3rem;min-width:11rem;animation:pop .12s ease}
+.menu button{display:block;width:100%;text-align:left;padding:.5rem .7rem;border-radius:8px;font-size:.9rem}
+.menu button:hover{background:var(--hover)}
+.menu .danger{color:var(--danger)}
+.toast{position:fixed;left:50%;bottom:1.5rem;z-index:60;transform:translate(-50%,1rem);opacity:0;pointer-events:none;background:var(--ink);color:#fff;padding:.6rem .8rem .6rem 1.1rem;border-radius:12px;display:flex;gap:1rem;align-items:center;font-size:.9rem;box-shadow:var(--shadow-lg);transition:opacity .2s,transform .2s;max-width:calc(100vw - 2rem)}
+.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{color:#F2C9D5;font-weight:600;padding:.15rem .35rem;border-radius:6px}
+.toast button:hover{background:rgba(255,255,255,.1)}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(4px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* small windows */
+@media (max-width:760px){
+  .matrix{display:block;min-height:0}
+  .axis-x,.axis-y{display:none}
+  .grid{display:grid;grid-template-columns:1fr;grid-template-rows:none}
+  .quad{min-height:9rem}
+  .quad .notes{overflow:visible}
+  main.matrix-view{display:block}
+  .suggest{margin-left:0}
+  .toggle{margin-left:0}
+}
+@media (max-width:520px){
+  .actions{margin-left:0}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><i></i><span>Prioritizer</span></div>
+  <nav class="views" aria-label="Views">
+    <button data-view="rank" title="Shortcut: 1">List</button>
+    <button data-view="eisen" title="Shortcut: 2">Eisenhower</button>
+    <button data-view="ve" title="Shortcut: 3">Value / Effort</button>
+    <button data-view="archive" title="Shortcut: 4">Archive</button>
+  </nav>
+  <div class="actions">
+    <button class="ibtn" id="syncBtn" aria-label="Save to folder" data-sync="off">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M2.75 6.25a1.5 1.5 0 0 1 1.5-1.5h3.4l1.6 1.75h6.5a1.5 1.5 0 0 1 1.5 1.5v6.75a1.5 1.5 0 0 1-1.5 1.5H4.25a1.5 1.5 0 0 1-1.5-1.5z"/><path class="mk-ok" d="M7.25 11.25l2 2 3.5-3.75"/><path class="mk-x" d="M8.25 9.5l3.5 3.5M11.75 9.5l-3.5 3.5"/></svg>
+    </button>
+    <input type="file" id="importFile" accept=".xlsx,.xls,.csv" hidden>
+  </div>
+</header>
+
+<div class="lists">
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div class="subtabs" id="subtabs"></div>
+</div>
+
+<form class="quickadd" id="quickadd" autocomplete="off">
+  <div class="field">
+    <button type="submit" class="addbtn" id="addBtn" aria-label="Add task">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+    </button>
+    <input id="qaInput" placeholder="Add a task" aria-label="Add a task" enterkeyhint="done">
+  </div>
+</form>
+
+<main id="main"></main>
+<div class="modal" id="modal"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- constants ---------- */
+const KEY = 'prioritizer.v1';
+const COLORS = ['blush','sage','lavender','butter','sky','peach'];
+const EQ = {
+  do:       {title:'Do first', sub:'Urgent and important',   urgent:true,  important:true},
+  schedule: {title:'Schedule', sub:'Important, not urgent',  urgent:false, important:true},
+  delegate: {title:'Delegate', sub:'Urgent, not important',  urgent:true,  important:false},
+  drop:     {title:'Drop',     sub:'Not urgent, not important', urgent:false, important:false}
+};
+const VQ = {
+  quick: {title:'Quick wins', sub:'High value, low effort',  value:'high', effort:'low'},
+  big:   {title:'Big bets',   sub:'High value, high effort', value:'high', effort:'high'},
+  fill:  {title:'Fill-ins',   sub:'Low value, low effort',   value:'low',  effort:'low'},
+  pit:   {title:'Money pits', sub:'Low value, high effort',  value:'low',  effort:'high'}
+};
+const E_ORDER = ['do','schedule','delegate','drop',null];
+const V_ORDER = ['quick','big','fill','pit',null];
+const ICON = {
+  check:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.3 2.3 4.7-5"/></svg>',
+  dots:'<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg>',
+  plus:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>',
+  trash:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/></svg>'
+};
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-5);
+const pad = n => String(n).padStart(2,'0');
+const dateStr = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const todayStr = () => dateStr(new Date());
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+/* ---------- state ---------- */
+function fresh(){
+  const main = {id:uid(), name:'Main', parentId:null};
+  return {version:1, lists:[main], activeListId:main.id, includeSub:true, view:'rank', colorIdx:0, tasks:[]};
+}
+function normalizeRanks(s){
+  s.tasks.sort((a,b) => (a.rank ?? 0) - (b.rank ?? 0)).forEach((t,i) => t.rank = i + 1);
+}
+function sanitize(s){
+  if (!s || !Array.isArray(s.lists) || !s.lists.length) return fresh();
+  s.tasks = Array.isArray(s.tasks) ? s.tasks : [];
+  s.includeSub = s.includeSub !== false;
+  s.colorIdx = Number.isFinite(s.colorIdx) ? s.colorIdx : 0;
+  if (!['rank','eisen','ve','archive'].includes(s.view)) s.view = 'rank';
+  const ids = new Set(s.lists.map(l => l.id));
+  s.lists.forEach(l => {
+    if (l.parentId && !ids.has(l.parentId)) l.parentId = null;
+    const p = l.parentId && s.lists.find(x => x.id === l.parentId);
+    if (p && p.parentId) l.parentId = p.parentId; // keep nesting to one level
+  });
+  if (!s.lists.some(l => !l.parentId)) s.lists[0].parentId = null;
+  s.tasks = s.tasks.filter(t => ids.has(t.listId));
+  if (!ids.has(s.activeListId)) s.activeListId = s.lists.find(l => !l.parentId).id;
+  normalizeRanks(s);
+  return s;
+}
+function load(){
+  try { const raw = localStorage.getItem(KEY); if (raw) return sanitize(JSON.parse(raw)); } catch(e) {}
+  return fresh();
+}
+let state = load();
+let saveWarned = false;
+function save(){
+  state.updatedAt = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(state)); }
+  catch(e){ if (!saveWarned){ saveWarned = true; toast('Could not save in this browser. Use Export to keep a copy.'); } }
+  scheduleWrite();
+}
+function commit(){ save(); render(); }
+
+const listById = id => state.lists.find(l => l.id === id);
+const childrenOf = id => state.lists.filter(l => l.parentId === id);
+const topLists = () => state.lists.filter(l => !l.parentId);
+const findTask = id => state.tasks.find(t => t.id === id);
+function activeList(){ return listById(state.activeListId) || topLists()[0]; }
+function scopeListIds(){
+  const a = activeList();
+  if (!a.parentId && state.includeSub) return [a.id, ...childrenOf(a.id).map(c => c.id)];
+  return [a.id];
+}
+const isDoneToday = t => t.done && t.doneAt === todayStr();
+function visibleTasks(){
+  const ids = scopeListIds();
+  return state.tasks
+    .filter(t => ids.includes(t.listId) && (!t.done || isDoneToday(t)))
+    .sort((a,b) => a.rank - b.rank);
+}
+function eKey(t){
+  if (t.urgent == null || t.important == null) return null;
+  return Object.keys(EQ).find(k => EQ[k].urgent === t.urgent && EQ[k].important === t.important) || null;
+}
+function vKey(t){
+  if (!t.value || !t.effort) return null;
+  return Object.keys(VQ).find(k => VQ[k].value === t.value && VQ[k].effort === t.effort) || null;
+}
+
+/* ---------- task actions ---------- */
+function addTask(title, attrs = {}){
+  title = String(title || '').trim();
+  if (!title) return false;
+  const maxRank = state.tasks.reduce((m,t) => Math.max(m, t.rank), 0);
+  state.tasks.push({
+    id:uid(), title, notes:'', color:COLORS[state.colorIdx++ % COLORS.length], rank:maxRank + 1,
+    urgent:null, important:null, value:null, effort:null,
+    listId:activeList().id, done:false, doneAt:null, createdAt:todayStr(), ...attrs
+  });
+  commit();
+  return true;
+}
+function toggleDone(id){
+  const t = findTask(id); if (!t) return;
+  t.done = !t.done;
+  t.doneAt = t.done ? todayStr() : null;
+  commit();
+}
+function deleteTask(id){
+  const i = state.tasks.findIndex(t => t.id === id); if (i < 0) return;
+  const [t] = state.tasks.splice(i, 1);
+  commit();
+  toast('Task deleted', 'Undo', () => { state.tasks.push(t); normalizeRanks(state); commit(); });
+}
+// Reassign the existing rank slots of these tasks in the given order (hidden tasks keep their place).
+function applyOrder(ids){
+  const tasks = ids.map(findTask).filter(Boolean);
+  const slots = tasks.map(t => t.rank).sort((a,b) => a - b);
+  tasks.forEach((t,i) => t.rank = slots[i]);
+  commit();
+}
+function suggest(mode){
+  const vis = visibleTasks();
+  const before = new Map(state.tasks.map(t => [t.id, t.rank]));
+  const e = t => E_ORDER.indexOf(eKey(t)), v = t => V_ORDER.indexOf(vKey(t));
+  const score = t => mode === 'eisen' ? [t.done?1:0, e(t), v(t)]
+                   : mode === 've'    ? [t.done?1:0, v(t), e(t)]
+                   :                    [t.done?1:0, e(t) + v(t), e(t)];
+  const sorted = [...vis].sort((a,b) => {
+    const sa = score(a), sb = score(b);
+    for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return sa[i] - sb[i];
+    return a.rank - b.rank;
+  });
+  applyOrder(sorted.map(t => t.id));
+  const label = mode === 'eisen' ? 'Eisenhower' : mode === 've' ? 'Value / Effort' : 'both matrices';
+  toast(`Reordered by ${label}`, 'Undo', () => {
+    state.tasks.forEach(t => { if (before.has(t.id)) t.rank = before.get(t.id); });
+    commit();
+  });
+}
+
+/* ---------- rendering ---------- */
+const main = $('#main');
+let openQuad = null;
+
+function render(){
+  document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === state.view));
+  renderTabs();
+  const qa = $('#quickadd');
+  qa.hidden = state.view === 'archive';
+  $('#addBtn').dataset.tip = state.view === 'rank' ? 'Adds to the bottom of the list. Shortcut: N'
+    : 'Lands in Unsorted. Use + on a quadrant to add straight into it. Shortcut: N';
+  main.className = (state.view === 'eisen' || state.view === 've') ? 'matrix-view' : '';
+  if (state.view === 'rank') renderRank();
+  else if (state.view === 'archive') renderArchive();
+  else renderMatrix(state.view);
+}
+
+function openCount(listIds){ return state.tasks.filter(t => !t.done && listIds.includes(t.listId)).length; }
+
+function renderTabs(){
+  const a = activeList();
+  const topId = a.parentId || a.id;
+  $('#tabs').innerHTML = topLists().map((l, i) => {
+    const n = openCount([l.id, ...childrenOf(l.id).map(c => c.id)]);
+    return `<div class="tab${l.id === topId ? ' on' : ''}" data-list="${l.id}" data-droplist="${l.id}" role="tab" tabindex="0" aria-selected="${l.id === topId}"${l.id === topId ? ' data-tip="Double-click to rename"' : ''}>
+      <span class="lname">${esc(l.name)}</span>${n ? `<span class="n">${n}</span>` : ''}
+      ${i === 0 ? '' : `<span class="more" data-menu="${l.id}" role="button" tabindex="0" aria-label="List options">${ICON.dots}</span>`}</div>`;
+  }).join('') + `<button class="tab add" id="addList" aria-label="New list" data-tip="New list">${ICON.plus}</button>`;
+
+  const top = listById(topId), kids = childrenOf(topId);
+  let html = '';
+  if (kids.length){
+    html += `<div class="chip${a.id === topId ? ' on' : ''}" data-list="${topId}" data-droplist="${topId}" role="button" tabindex="0"><span class="lname">${esc(top.name)}</span></div>`;
+    html += kids.map(k => {
+      const n = openCount([k.id]);
+      return `<div class="chip${a.id === k.id ? ' on' : ''}" data-list="${k.id}" data-droplist="${k.id}" role="button" tabindex="0"${a.id === k.id ? ' data-tip="Double-click to rename"' : ''}><span class="lname">${esc(k.name)}</span>${n ? `<span class="n">${n}</span>` : ''}${a.id === k.id ? `<span class="more" data-menu="${k.id}" role="button" tabindex="0" aria-label="Section options">${ICON.dots}</span>` : ''}</div>`;
+    }).join('');
+  }
+  html += `<div class="chip add" data-addsub="${topId}" role="button" tabindex="0" data-tip="Split ${esc(top.name)} into sections">+ Section</div>`;
+  if (kids.length && a.id === topId){
+    html += `<label class="toggle"><input type="checkbox" id="incSub"${state.includeSub ? ' checked' : ''}> Include sections</label>`;
+  }
+  $('#subtabs').innerHTML = html;
+}
+
+function badges(t){
+  const e = eKey(t), v = vKey(t);
+  return (e ? `<span class="tag">${EQ[e].title}</span>` : '') + (v ? `<span class="tag">${VQ[v].title}</span>` : '');
+}
+function card(t, rank){
+  const multi = scopeListIds().length > 1;
+  const L = listById(t.listId);
+  const listTag = multi && t.listId !== state.activeListId ? `<span class="tag list">${esc(L.name)}</span>` : '';
+  const meta = listTag + (rank != null ? badges(t) : '');
+  const color = COLORS.includes(t.color) ? t.color : 'blush';
+  return `<article class="note c-${color}${t.done ? ' done' : ''}" draggable="true" data-id="${t.id}" tabindex="0">`
+    + (rank != null ? `<span class="rank">${rank}</span>` : '')
+    + `<button class="check" data-act="done" aria-label="${t.done ? 'Mark not done' : 'Mark done'}" title="${t.done ? 'Completed today. Click to reopen.' : 'Mark done'}">${ICON.check}</button>`
+    + `<div class="title">${esc(t.title)}</div>`
+    + (t.notes ? `<div class="snip">${esc(t.notes)}</div>` : '')
+    + (meta ? `<div class="meta">${meta}</div>` : '')
+    + `</article>`;
+}
+const emptyHTML = `<div class="empty"><span class="serif">A clean slate.</span>Add your first task above. It shows up in every view.</div>`;
+
+function renderRank(){
+  const vis = visibleTasks();
+  const open = vis.filter(t => !t.done).length, doneToday = vis.length - open;
+  main.innerHTML = `<div class="rankbar">
+      <span class="count">${open} open${doneToday ? ` · ${doneToday} done today` : ''}</span>
+      ${vis.length > 1 ? `<div class="suggest"><span>Suggest order</span>
+        <button class="pill" data-suggest="eisen" title="Do first, Schedule, Delegate, Drop">Eisenhower</button>
+        <button class="pill" data-suggest="ve" title="Quick wins, Big bets, Fill-ins, Money pits">Value / Effort</button>
+        <button class="pill" data-suggest="blend" title="Combine both matrices">Blend</button></div>` : ''}
+    </div>
+    <div class="ranklist dropzone" data-zone="rank">${vis.map((t,i) => card(t, i + 1)).join('')}</div>
+    ${vis.length ? '' : emptyHTML}`;
+}
+
+function renderMatrix(kind){
+  const Q = kind === 'eisen' ? EQ : VQ;
+  const keyFn = kind === 'eisen' ? eKey : vKey;
+  const ax = kind === 'eisen' ? ['Urgent','Not urgent'] : ['Low effort','High effort'];
+  const ay = kind === 'eisen' ? ['Important','Not important'] : ['High value','Low value'];
+  const vis = visibleTasks();
+  const un = vis.filter(t => !keyFn(t));
+  main.innerHTML = `
+    <section class="tray dropzone${un.length ? '' : ' empty'}" data-zone="none">
+      <header><b>Unsorted</b><span>${un.length ? `${un.length} to place. Drag into a quadrant.` : 'Everything is placed. Drop a note here to unsort it.'}</span></header>
+      <div class="notes">${un.map(t => card(t)).join('')}</div>
+    </section>
+    <div class="matrix">
+      <div class="axis-x"><span>${ax[0]}</span><span>${ax[1]}</span></div>
+      <div class="axis-y"><span>${ay[0]}</span><span>${ay[1]}</span></div>
+      <div class="grid">${Object.entries(Q).map(([k,q]) => {
+        const items = vis.filter(t => keyFn(t) === k);
+        return `<section class="quad q-${k} dropzone" data-zone="${k}">
+          <header><h3>${q.title}</h3><small>${q.sub}</small>${items.length ? `<span class="qn">${items.length}</span>` : ''}
+            <button class="qadd" data-qadd="${k}" aria-label="Add to ${q.title}" data-tip="Add to ${q.title}">${ICON.plus}</button></header>
+          <div class="notes">${openQuad === k ? `<form class="qform" data-qform="${k}"><input placeholder="New task in ${q.title}" aria-label="New task"></form>` : ''}${items.map(t => card(t)).join('')}${!items.length && openQuad !== k ? `<div class="qhint">Drop notes here</div>` : ''}</div>
+        </section>`;
+      }).join('')}</div>
+    </div>`;
+  if (openQuad){ const i = main.querySelector('.qform input'); if (i) i.focus(); }
+}
+
+function dayLabel(d){
+  if (!d) return 'Earlier';
+  if (d === todayStr()) return 'Today';
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  if (d === dateStr(y)) return 'Yesterday';
+  const [Y,M,D] = d.split('-').map(Number);
+  const opts = {weekday:'short', month:'short', day:'numeric'};
+  if (Y !== new Date().getFullYear()) opts.year = 'numeric';
+  return new Date(Y, M - 1, D).toLocaleDateString(undefined, opts);
+}
+function renderArchive(){
+  const ids = scopeListIds(), multi = ids.length > 1;
+  const done = state.tasks.filter(t => t.done && ids.includes(t.listId))
+    .sort((a,b) => (b.doneAt || '').localeCompare(a.doneAt || '') || a.rank - b.rank);
+  if (!done.length){
+    main.innerHTML = `<div class="archive"><div class="empty"><span class="serif">Nothing archived yet.</span>Finished tasks stay crossed out for the day, then move here.</div></div>`;
+    return;
+  }
+  const groups = new Map();
+  done.forEach(t => { const k = t.doneAt || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(t); });
+  main.innerHTML = `<div class="archive">
+    <div class="arch-head"><span class="count">${plural(done.length,'completed task')}</span><button class="btn" data-clear-archive>Clear archive</button></div>
+    ${[...groups].map(([d,ts]) => `<div class="day"><h4>${dayLabel(d)}</h4>${ts.map(t => `
+      <div class="arow c-${COLORS.includes(t.color) ? t.color : 'blush'}" data-id="${t.id}">
+        <button class="check" data-act="done" title="Reopen" aria-label="Reopen task">${ICON.check}</button>
+        <span class="t">${esc(t.title)}</span>
+        ${multi && t.listId !== state.activeListId ? `<span class="tag list">${esc(listById(t.listId).name)}</span>` : ''}
+        <button class="icon-btn" data-delete="${t.id}" title="Delete" aria-label="Delete task">${ICON.trash}</button>
+      </div>`).join('')}</div>`).join('')}
+  </div>`;
+}
+
+/* ---------- modal, menu, toast ---------- */
+const modal = $('#modal');
+function showModal(html, init){
+  modal.innerHTML = `<div class="backdrop" data-close></div>${html}`;
+  modal.classList.add('open');
+  if (init) init(modal.querySelector('.sheet'));
+}
+function closeModal(){ modal.classList.remove('open'); modal.innerHTML = ''; }
+modal.addEventListener('click', e => { if (e.target.closest('[data-close]')) closeModal(); });
+
+function askText(title, initial, cb, okLabel = 'Save'){
+  showModal(`<form class="sheet small"><h3 class="serif">${esc(title)}</h3>
+    <input value="${esc(initial)}" maxlength="60" autocomplete="off" aria-label="Name">
+    <footer><span class="grow"></span><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">${okLabel}</button></footer></form>`,
+    f => {
+      const i = f.querySelector('input'); i.focus(); i.select();
+      f.addEventListener('submit', e => { e.preventDefault(); const v = i.value.trim(); if (!v) return i.focus(); closeModal(); cb(v); });
+    });
+}
+function confirmBox(title, msg, okLabel, cb){
+  showModal(`<div class="sheet small"><h3 class="serif">${esc(title)}</h3><p>${esc(msg)}</p>
+    <footer><span class="grow"></span><button class="btn" data-close>Cancel</button><button class="btn primary danger" data-ok>${okLabel}</button></footer></div>`,
+    s => { const b = s.querySelector('[data-ok]'); b.onclick = () => { closeModal(); cb(); }; b.focus(); });
+}
+
+let menuEl = null;
+function closeMenu(){ if (menuEl){ menuEl.remove(); menuEl = null; } }
+function openMenu(listId, anchor){
+  closeMenu();
+  const L = listById(listId); if (!L) return;
+  menuEl = document.createElement('div');
+  menuEl.className = 'menu';
+  menuEl.innerHTML = `${L.parentId ? '' : '<button data-m="sub">Add section</button>'}<button data-m="delete" class="danger">Delete ${L.parentId ? 'section' : 'list'}</button>`;
+  document.body.appendChild(menuEl);
+  const r = anchor.getBoundingClientRect();
+  menuEl.style.left = Math.max(8, Math.min(r.left, innerWidth - menuEl.offsetWidth - 8)) + 'px';
+  menuEl.style.top = (r.bottom + 6) + 'px';
+  menuEl.addEventListener('click', e => {
+    const b = e.target.closest('[data-m]'); if (!b) return;
+    closeMenu();
+    if (b.dataset.m === 'rename') askText('Rename', L.name, v => { L.name = v; commit(); });
+    if (b.dataset.m === 'sub') newSubList(L.id);
+    if (b.dataset.m === 'delete') deleteList(L);
+  });
+}
+function newSubList(parentId){
+  askText(`New section in ${listById(parentId).name}`, '', v => {
+    const n = {id:uid(), name:v, parentId}; state.lists.push(n); state.activeListId = n.id; commit();
+  }, 'Create');
+}
+function deleteList(L){
+  if (!L.parentId && topLists().length === 1){ toast('You need at least one list. Rename this one instead.'); return; }
+  const ids = [L.id, ...childrenOf(L.id).map(c => c.id)];
+  const n = state.tasks.filter(t => ids.includes(t.listId)).length, kids = ids.length - 1;
+  confirmBox(`Delete "${L.name}"?`,
+    `This removes ${plural(n,'task')}${kids ? ` and ${plural(kids,'section')}` : ''}. Export first if you want a backup.`,
+    'Delete', () => {
+      state.lists = state.lists.filter(l => !ids.includes(l.id));
+      state.tasks = state.tasks.filter(t => !ids.includes(t.listId));
+      if (ids.includes(state.activeListId)) state.activeListId = L.parentId || topLists()[0].id;
+      commit();
+    });
+}
+
+const toastEl = $('#toast');
+let toastTimer;
+function toast(msg, actionLabel, action, ms){
+  toastEl.innerHTML = `<span>${esc(msg)}</span>${actionLabel ? `<button>${esc(actionLabel)}</button>` : ''}`;
+  toastEl.classList.add('show');
+  if (actionLabel) toastEl.querySelector('button').onclick = () => { hideToast(); action(); };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, ms || (actionLabel ? 6000 : 3200));
+}
+function hideToast(){ toastEl.classList.remove('show'); }
+
+/* ---------- editor ---------- */
+function segBtns(Q, cur){
+  return `<button type="button" data-val=""${cur === '' ? ' class="on"' : ''}>Unsorted</button>`
+    + Object.keys(Q).map(k => `<button type="button" data-val="${k}"${cur === k ? ' class="on"' : ''}>${Q[k].title}</button>`).join('');
+}
+function openEditor(id){
+  const t = findTask(id); if (!t) return;
+  const d = {color: COLORS.includes(t.color) ? t.color : 'blush', e: eKey(t) || '', v: vKey(t) || ''};
+  const opts = topLists().flatMap(p => [p, ...childrenOf(p.id)])
+    .map(l => `<option value="${l.id}"${l.id === t.listId ? ' selected' : ''}>${l.parentId ? '\u00A0\u00A0\u00A0\u21B3 ' : ''}${esc(l.name)}</option>`).join('');
+  showModal(`<div class="sheet editor c-${d.color}" role="dialog" aria-modal="true" aria-label="Edit task">
+      <textarea class="ed-title serif" rows="1" placeholder="Task" aria-label="Task">${esc(t.title)}</textarea>
+      <textarea class="ed-notes" rows="3" placeholder="Notes" aria-label="Notes">${esc(t.notes)}</textarea>
+      <div class="fld"><label>Color</label><div class="swatches">${COLORS.map(c => `<button type="button" class="sw c-${c}${c === d.color ? ' on' : ''}" data-color="${c}" aria-label="${c}"></button>`).join('')}</div></div>
+      <div class="fld"><label>Eisenhower</label><div class="seg" data-seg="e">${segBtns(EQ, d.e)}</div></div>
+      <div class="fld"><label>Value / Effort</label><div class="seg" data-seg="v">${segBtns(VQ, d.v)}</div></div>
+      <div class="fld"><label>List</label><select aria-label="List">${opts}</select></div>
+      <footer><button type="button" class="btn text-danger" data-ed="delete">Delete</button><span class="grow"></span>
+        <button type="button" class="btn" data-ed="cancel">Cancel</button><button type="button" class="btn primary" data-ed="save">Save</button></footer>
+    </div>`, sheet => {
+      const title = sheet.querySelector('.ed-title');
+      const fit = () => { title.style.height = 'auto'; title.style.height = title.scrollHeight + 'px'; };
+      fit(); title.addEventListener('input', fit);
+      title.focus(); title.setSelectionRange(title.value.length, title.value.length);
+      const saveEd = () => {
+        const v = title.value.replace(/\s+/g, ' ').trim();
+        if (!v){ title.focus(); return; }
+        t.title = v;
+        t.notes = sheet.querySelector('.ed-notes').value.trim();
+        t.color = d.color;
+        t.listId = sheet.querySelector('select').value;
+        if (d.e){ t.urgent = EQ[d.e].urgent; t.important = EQ[d.e].important; } else { t.urgent = null; t.important = null; }
+        if (d.v){ t.value = VQ[d.v].value; t.effort = VQ[d.v].effort; } else { t.value = null; t.effort = null; }
+        closeModal(); commit();
+      };
+      title.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveEd(); } });
+      sheet.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); saveEd(); } });
+      sheet.addEventListener('click', e => {
+        const sw = e.target.closest('[data-color]');
+        if (sw){
+          d.color = sw.dataset.color;
+          sheet.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b === sw));
+          sheet.className = sheet.className.replace(/\bc-\w+/, 'c-' + d.color);
+          return;
+        }
+        const sb = e.target.closest('.seg button');
+        if (sb){
+          const seg = sb.parentElement; d[seg.dataset.seg] = sb.dataset.val;
+          seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === sb));
+          return;
+        }
+        const a = e.target.closest('[data-ed]'); if (!a) return;
+        if (a.dataset.ed === 'cancel') closeModal();
+        else if (a.dataset.ed === 'delete'){ closeModal(); deleteTask(id); }
+        else saveEd();
+      });
+    });
+}
+
+/* ---------- excel export / import ---------- */
+const HEADERS = ['Rank','Task','Notes','Status','Completed On','Eisenhower','Urgent','Important','Value/Effort','Value','Effort','Color','Created','ID'];
+const yesNo = b => b === true ? 'Yes' : b === false ? 'No' : '';
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : '';
+const NO_XLSX = 'Excel tools did not load. Check your internet connection and reload.';
+
+function exportXlsx(){
+  if (!window.XLSX){ toast(NO_XLSX); return; }
+  XLSX.writeFile(buildWorkbook(), `prioritizer-${todayStr()}.xlsx`);
+  toast('Exported to Excel');
+}
+function buildWorkbook(){
+  const wb = XLSX.utils.book_new();
+  const ordered = topLists().flatMap(p => [p, ...childrenOf(p.id)]);
+  const used = new Set(['lists']), sheetOf = new Map();
+  ordered.forEach(l => {
+    const base = (l.name.replace(/[\\\/\?\*\[\]:]/g, ' ').trim() || 'List').slice(0, 31);
+    let n = base, i = 2;
+    while (used.has(n.toLowerCase())){ const suf = ` (${i++})`; n = base.slice(0, 31 - suf.length) + suf; }
+    used.add(n.toLowerCase()); sheetOf.set(l.id, n);
+  });
+  ordered.forEach(l => {
+    const ts = state.tasks.filter(t => t.listId === l.id).sort((a,b) => (a.done - b.done) || a.rank - b.rank);
+    let r = 0;
+    const rows = ts.map(t => {
+      const e = eKey(t), v = vKey(t);
+      return {
+        'Rank': t.done ? '' : ++r, 'Task': t.title, 'Notes': t.notes || '',
+        'Status': t.done ? 'Done' : 'Open', 'Completed On': t.doneAt || '',
+        'Eisenhower': e ? EQ[e].title : '', 'Urgent': yesNo(t.urgent), 'Important': yesNo(t.important),
+        'Value/Effort': v ? VQ[v].title : '', 'Value': cap(t.value), 'Effort': cap(t.effort),
+        'Color': t.color, 'Created': t.createdAt || '', 'ID': t.id
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows, {header: HEADERS});
+    ws['!cols'] = [6,40,40,8,13,12,8,10,13,8,8,9,11,12].map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws, sheetOf.get(l.id));
+  });
+  const meta = XLSX.utils.json_to_sheet(ordered.map(l => ({
+    'Sheet': sheetOf.get(l.id), 'List Name': l.name, 'Parent List': l.parentId ? listById(l.parentId).name : '', 'ID': l.id
+  })), {header:['Sheet','List Name','Parent List','ID']});
+  meta['!cols'] = [{wch:32},{wch:32},{wch:32},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, meta, 'Lists');
+  return wb;
+}
+
+const norm = s => String(s ?? '').trim().toLowerCase();
+function getter(row){
+  const m = new Map(Object.keys(row).map(k => [k.trim().toLowerCase(), row[k]]));
+  return k => m.has(k) ? m.get(k) : '';
+}
+function yn(v){
+  if (v === true) return true; if (v === false) return false;
+  const s = norm(v);
+  if (['yes','y','true','1','x'].includes(s)) return true;
+  if (['no','n','false','0'].includes(s)) return false;
+  return null;
+}
+function hl(v){
+  const s = norm(v);
+  if (['high','h','hi'].includes(s)) return 'high';
+  if (['low','l','lo'].includes(s)) return 'low';
+  const n = Number(s);
+  if (s && Number.isFinite(n)) return n >= 3 ? 'high' : 'low';
+  return null;
+}
+function findQuad(Q, v){
+  const s = norm(v).replace(/s$/, ''); if (!s) return null;
+  return Object.keys(Q).find(k => norm(Q[k].title).replace(/s$/, '') === s || k === s) || null;
+}
+function toDate(v){
+  if (v instanceof Date && !isNaN(v)) return dateStr(v);
+  if (typeof v === 'number' && v > 20000) return dateStr(new Date(Math.round((v - 25569) * 864e5) + new Date().getTimezoneOffset() * 6e4));
+  const s = String(v ?? '').trim(); if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s); return isNaN(d) ? null : dateStr(d);
+}
+function parseWorkbook(wb){
+  const metaName = wb.SheetNames.find(n => norm(n) === 'lists');
+  const meta = new Map();
+  if (metaName){
+    XLSX.utils.sheet_to_json(wb.Sheets[metaName], {defval:''}).forEach(r => {
+      const g = getter(r), sheet = String(g('sheet')).trim();
+      if (sheet) meta.set(sheet.toLowerCase(), {name: String(g('list name') || sheet).trim(), parent: String(g('parent list')).trim(), id: String(g('id')).trim()});
+    });
+  }
+  const seen = new Set();
+  const keepId = v => { v = String(v ?? '').trim(); if (!v || seen.has(v)) v = uid(); seen.add(v); return v; };
+  const lists = [], byName = new Map();
+  wb.SheetNames.filter(n => n !== metaName).forEach(sn => {
+    const m = meta.get(sn.toLowerCase()) || {name: sn, parent: '', id: ''};
+    const l = {id:keepId(m.id), name:m.name, parentId:null, _parent:m.parent, _sheet:sn};
+    lists.push(l);
+    if (!byName.has(m.name.toLowerCase())) byName.set(m.name.toLowerCase(), l);
+  });
+  lists.forEach(l => {
+    if (!l._parent) return;
+    const p = byName.get(l._parent.toLowerCase());
+    if (p && p !== l && !p._parent) l.parentId = p.id;
+  });
+  const tasks = []; let rank = 0, ci = 0;
+  lists.forEach(l => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[l._sheet], {defval:'', raw:true});
+    const parsed = [];
+    rows.forEach((r, i) => {
+      const g = getter(r);
+      const title = String(g('task') || g('title') || g('name')).trim();
+      if (!title) return;
+      let urgent = yn(g('urgent')), important = yn(g('important'));
+      const eq = findQuad(EQ, g('eisenhower'));
+      if (urgent == null && important == null && eq){ urgent = EQ[eq].urgent; important = EQ[eq].important; }
+      let value = hl(g('value')), effort = hl(g('effort'));
+      const vq = findQuad(VQ, g('value/effort') || g('value / effort'));
+      if (!value && !effort && vq){ value = VQ[vq].value; effort = VQ[vq].effort; }
+      const st = norm(g('status'));
+      const done = ['done','complete','completed','closed','yes','true','x'].includes(st);
+      const c = norm(g('color'));
+      const rkRaw = g('rank'), rk = Number(rkRaw);
+      parsed.push({i, rk: String(rkRaw).trim() !== '' && Number.isFinite(rk) ? rk : Infinity, t:{
+        id:keepId(g('id')), title, notes:String(g('notes')).trim(), color: COLORS.includes(c) ? c : COLORS[ci++ % COLORS.length], rank:0,
+        urgent, important, value, effort, listId:l.id, done, doneAt: done ? toDate(g('completed on')) : null,
+        createdAt: toDate(g('created')) || todayStr()
+      }});
+    });
+    parsed.sort((a,b) => (a.t.done - b.t.done) || (a.rk - b.rk) || (a.i - b.i)).forEach(p => { p.t.rank = ++rank; tasks.push(p.t); });
+  });
+  lists.forEach(l => { delete l._parent; delete l._sheet; });
+  return {lists, tasks};
+}
+function doImport(p, mode){
+  if (mode === 'replace'){ state.lists = p.lists; state.tasks = p.tasks; }
+  else {
+    // fresh ids so an imported copy never collides with what's already here
+    const lmap = new Map(p.lists.map(l => [l.id, uid()]));
+    p.lists.forEach(l => { l.id = lmap.get(l.id); if (l.parentId) l.parentId = lmap.get(l.parentId); });
+    p.tasks.forEach(t => { t.id = uid(); t.listId = lmap.get(t.listId); });
+    const names = new Set(topLists().map(l => l.name.toLowerCase()));
+    p.lists.filter(l => !l.parentId).forEach(l => {
+      let n = l.name, i = 2;
+      while (names.has(n.toLowerCase())) n = `${l.name} (${i++})`;
+      l.name = n; names.add(n.toLowerCase());
+    });
+    const off = state.tasks.reduce((m,t) => Math.max(m, t.rank), 0);
+    p.tasks.forEach(t => t.rank += off);
+    state.lists.push(...p.lists); state.tasks.push(...p.tasks);
+  }
+  const first = p.lists.find(l => !l.parentId);
+  if (first) state.activeListId = first.id;
+  state = sanitize(state);
+  commit();
+  toast(`Imported ${plural(p.tasks.length,'task')}`);
+}
+function importFile(file){
+  if (!window.XLSX){ toast(NO_XLSX); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    let p;
+    try { p = parseWorkbook(XLSX.read(new Uint8Array(reader.result), {type:'array', cellDates:true})); }
+    catch(e){ toast('Could not read that file.'); return; }
+    if (!p.lists.length){ toast('No lists found in that file.'); return; }
+    const isEmpty = !state.tasks.length && state.lists.length === 1;
+    if (isEmpty) return doImport(p, 'replace');
+    showModal(`<div class="sheet small"><h3 class="serif">Import ${plural(p.tasks.length,'task')}</h3>
+      <p>From ${plural(p.lists.length,'list')}. How should they come in?</p>
+      <div class="choice">
+        <button class="opt" data-imp="add"><b>Add as new lists</b><span>Keep everything you have. Good for a teammate's board.</span></button>
+        <button class="opt" data-imp="replace"><b>Replace my board</b><span>Swap everything for this file. Good for restoring a backup.</span></button>
+      </div>
+      <footer><span class="grow"></span><button class="btn" data-close>Cancel</button></footer></div>`,
+      s => s.addEventListener('click', e => {
+        const b = e.target.closest('[data-imp]'); if (!b) return;
+        closeModal(); doImport(p, b.dataset.imp);
+      }));
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ---------- drag and drop ---------- */
+let dragId = null, overEl = null;
+function setOver(el){
+  if (overEl === el) return;
+  clearOver(); overEl = el;
+  if (el) el.classList.add(el.dataset.droplist ? 'drop-target' : 'drop-over');
+}
+function clearOver(){ if (overEl){ overEl.classList.remove('drop-over','drop-target'); overEl = null; } }
+function getAfter(container, y){
+  let best = {off:-Infinity, el:null};
+  container.querySelectorAll('.note:not(.dragging)').forEach(el => {
+    const b = el.getBoundingClientRect(), off = y - b.top - b.height / 2;
+    if (off < 0 && off > best.off) best = {off, el};
+  });
+  return best.el;
+}
+document.addEventListener('dragstart', e => {
+  const n = e.target.closest && e.target.closest('.note'); if (!n) return;
+  dragId = n.dataset.id;
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', dragId); } catch(_) {}
+  setTimeout(() => n.classList.add('dragging'), 0);
+});
+document.addEventListener('dragover', e => {
+  if (!dragId) return;
+  const z = e.target.closest && e.target.closest('.dropzone,[data-droplist]');
+  if (!z){ clearOver(); return; }
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  if (z.dataset.zone === 'rank'){
+    clearOver();
+    const el = z.querySelector('.note.dragging'); if (!el) return;
+    const after = getAfter(z, e.clientY);
+    if (after == null){ if (z.lastElementChild !== el) z.appendChild(el); }
+    else if (after !== el && after.previousElementSibling !== el) z.insertBefore(el, after);
+    z.querySelectorAll('.note .rank').forEach((s,i) => s.textContent = i + 1);
+  } else setOver(z);
+});
+document.addEventListener('drop', e => {
+  if (!dragId) return;
+  const z = e.target.closest && e.target.closest('.dropzone,[data-droplist]');
+  if (!z) return;
+  e.preventDefault();
+  const id = dragId; dragId = null; clearOver();
+  const t = findTask(id); if (!t) return render();
+  if (z.dataset.droplist){
+    const L = listById(z.dataset.droplist);
+    if (L && t.listId !== L.id){ t.listId = L.id; commit(); toast(`Moved to ${L.name}`); } else render();
+    return;
+  }
+  const zone = z.dataset.zone;
+  if (zone === 'rank'){ applyOrder([...z.querySelectorAll('.note')].map(n => n.dataset.id)); return; }
+  if (state.view === 'eisen'){
+    if (zone === 'none'){ t.urgent = null; t.important = null; } else { t.urgent = EQ[zone].urgent; t.important = EQ[zone].important; }
+  } else if (state.view === 've'){
+    if (zone === 'none'){ t.value = null; t.effort = null; } else { t.value = VQ[zone].value; t.effort = VQ[zone].effort; }
+  }
+  commit();
+});
+document.addEventListener('dragend', () => {
+  clearOver();
+  if (dragId){ dragId = null; render(); } // drag was cancelled: restore order
+});
+
+/* ---------- inline rename (double-click a tab or section) ---------- */
+let lastListClick = {id:null, t:0};
+function startRename(id){
+  const L = listById(id); if (!L) return;
+  const span = document.querySelector(`[data-list="${id}"] .lname`); if (!span) return;
+  hideTip();
+  const inp = document.createElement('input');
+  inp.className = 'rename'; inp.value = L.name; inp.maxLength = 60; inp.setAttribute('aria-label', 'List name');
+  const fit = () => { inp.style.width = Math.max(3, inp.value.length + 1) + 'ch'; };
+  fit(); inp.addEventListener('input', fit);
+  let done = false;
+  const finish = keep => {
+    if (done) return; done = true;
+    const v = inp.value.trim();
+    if (keep && v && v !== L.name){ L.name = v; commit(); } else render();
+  };
+  inp.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter'){ e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape'){ e.preventDefault(); finish(false); }
+  });
+  inp.addEventListener('blur', () => finish(true));
+  span.replaceWith(inp);
+  inp.focus(); inp.select();
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  if (e.target.closest('#modal')) return;
+  if (menuEl){ if (menuEl.contains(e.target)) return; closeMenu(); }
+  const t = e.target;
+  const m = t.closest('[data-menu]'); if (m){ e.stopPropagation(); openMenu(m.dataset.menu, m); return; }
+  const v = t.closest('[data-view]'); if (v){ state.view = v.dataset.view; openQuad = null; commit(); return; }
+  if (t.closest('input.rename')) return;
+  const l = t.closest('[data-list]');
+  if (l){
+    const id = l.dataset.list, now = Date.now();
+    if (lastListClick.id === id && now - lastListClick.t < 450){ lastListClick = {id:null, t:0}; startRename(id); return; }
+    lastListClick = {id, t:now};
+    if (state.activeListId !== id){ state.activeListId = id; commit(); }
+    return;
+  }
+  if (t.closest('#addList')){ askText('New list', '', name => { const n = {id:uid(), name, parentId:null}; state.lists.push(n); state.activeListId = n.id; commit(); }, 'Create'); return; }
+  const as = t.closest('[data-addsub]'); if (as){ newSubList(as.dataset.addsub); return; }
+  const sb = t.closest('#syncBtn'); if (sb){ onSyncClick(sb); return; }
+  const chk = t.closest('[data-act="done"]'); if (chk){ toggleDone(chk.closest('[data-id]').dataset.id); return; }
+  const sg = t.closest('[data-suggest]'); if (sg){ suggest(sg.dataset.suggest); return; }
+  const qa = t.closest('[data-qadd]'); if (qa){ openQuad = openQuad === qa.dataset.qadd ? null : qa.dataset.qadd; render(); return; }
+  const del = t.closest('[data-delete]'); if (del){ deleteTask(del.dataset.delete); return; }
+  if (t.closest('[data-clear-archive]')){
+    const ids = scopeListIds();
+    const n = state.tasks.filter(x => x.done && ids.includes(x.listId)).length;
+    confirmBox('Clear archive?', `This permanently deletes ${plural(n,'completed task')} in this view.`, 'Clear', () => {
+      state.tasks = state.tasks.filter(x => !(x.done && ids.includes(x.listId))); commit();
+    });
+    return;
+  }
+  const c = t.closest('.note,.arow'); if (c && !t.closest('.qform')){ openEditor(c.dataset.id); return; }
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'incSub'){ state.includeSub = e.target.checked; commit(); }
+  if (e.target.id === 'importFile'){ const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); }
+});
+$('#quickadd').addEventListener('submit', e => {
+  e.preventDefault();
+  const i = $('#qaInput');
+  if (addTask(i.value)) i.value = '';
+  i.focus();
+});
+document.addEventListener('submit', e => {
+  const f = e.target.closest && e.target.closest('.qform'); if (!f) return;
+  e.preventDefault();
+  const k = f.dataset.qform, val = f.querySelector('input').value;
+  const attrs = state.view === 'eisen' ? {urgent:EQ[k].urgent, important:EQ[k].important} : {value:VQ[k].value, effort:VQ[k].effort};
+  addTask(val, attrs);
+});
+document.addEventListener('focusout', e => {
+  const f = e.target.closest && e.target.closest('.qform');
+  if (!f || f.querySelector('input').value.trim()) return;
+  setTimeout(() => {
+    if (!document.activeElement || !document.activeElement.closest('.qform')){ openQuad = null; render(); }
+  }, 150);
+});
+document.addEventListener('keydown', e => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '');
+  const modalOpen = modal.classList.contains('open');
+  if (e.key === 'Escape'){
+    if (modalOpen) return closeModal();
+    if (menuEl) return closeMenu();
+    if (openQuad){ openQuad = null; render(); return; }
+    if (typing) document.activeElement.blur();
+    return;
+  }
+  if (typing || modalOpen || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'n' || e.key === '/'){
+    e.preventDefault();
+    if (state.view === 'archive'){ state.view = 'rank'; commit(); }
+    $('#qaInput').focus();
+  } else if (['1','2','3','4'].includes(e.key)){
+    state.view = ['rank','eisen','ve','archive'][+e.key - 1]; openQuad = null; commit();
+  } else if (e.key === 'Enter'){
+    const el = e.target;
+    if (el.classList && el.classList.contains('note')) openEditor(el.dataset.id);
+    else if (el.dataset && el.dataset.list) { state.activeListId = el.dataset.list; commit(); }
+  }
+});
+window.addEventListener('storage', e => { if (e.key === KEY){ state = load(); render(); } });
+let lastDay = todayStr();
+const checkDay = () => { if (todayStr() !== lastDay){ lastDay = todayStr(); render(); } };
+setInterval(checkDay, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden){ checkDay(); checkExternal(); } });
+window.addEventListener('focus', () => checkExternal());
+
+/* ---------- tooltips ---------- */
+const tipEl = $('#tip');
+let tipFor = null, tipTimer = null;
+function placeTip(el){
+  tipEl.textContent = el.dataset.tip;
+  const r = el.getBoundingClientRect(), w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  const left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 8));
+  let top = r.bottom + 8; if (top + h > innerHeight - 8) top = r.top - h - 8;
+  tipEl.style.left = left + 'px'; tipEl.style.top = top + 'px';
+}
+function hideTip(){ clearTimeout(tipTimer); tipEl.classList.remove('show'); tipFor = null; }
+document.addEventListener('mouseover', e => {
+  const el = e.target.closest && e.target.closest('[data-tip]');
+  if (el === tipFor) return;
+  hideTip(); if (!el) return;
+  tipFor = el;
+  tipTimer = setTimeout(() => { if (tipFor === el && el.isConnected){ placeTip(el); tipEl.classList.add('show'); } }, 280);
+});
+['mousedown','dragstart','scroll','keydown'].forEach(ev => document.addEventListener(ev, hideTip, true));
+
+/* ---------- autosave to a folder (Chrome / Edge) ---------- */
+const FILE_NAME = 'prioritizer.xlsx';
+const fsOK = typeof window.showDirectoryPicker === 'function';
+let dirHandle = null, sync = 'off', lastSig = '', lastFileMod = 0, writeTimer = null, writing = false, syncWarned = false;
+const dataSig = () => JSON.stringify([state.lists, state.tasks]);
+const isBlank = () => !state.tasks.length && state.lists.length === 1;
+
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('prioritizer', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function kvGet(k){
+  const db = await idb();
+  return new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); });
+}
+async function kvSet(k, v){
+  const db = await idb();
+  return new Promise(res => {
+    const tx = db.transaction('kv', 'readwrite'), st = tx.objectStore('kv');
+    v === undefined ? st.delete(k) : st.put(v, k);
+    tx.oncomplete = () => res(); tx.onerror = () => res();
+  });
+}
+const xlsxReady = () => new Promise(res => window.XLSX || document.readyState === 'complete' ? res() : window.addEventListener('load', res, {once:true}));
+
+function setSync(s){
+  sync = s;
+  const b = $('#syncBtn'), where = dirHandle ? `${dirHandle.name}/${FILE_NAME}` : FILE_NAME;
+  b.dataset.sync = fsOK ? s : 'na';
+  b.dataset.tip = !fsOK ? 'Download or import a copy. Folder syncing needs Chrome or Edge.'
+    : s === 'on' ? `Syncing to ${where}`
+    : s === 'paused' ? `Sync paused. Click to reconnect to ${dirHandle ? dirHandle.name : 'your folder'}.`
+    : s === 'error' ? `Can't save to ${where}. Close it in Excel if it's open.`
+    : 'Not syncing. Click to choose a folder.';
+  if (tipFor === b) placeTip(b);
+}
+async function readFolderFile(){
+  let fh;
+  try { fh = await dirHandle.getFileHandle(FILE_NAME); } catch(e){ if (e.name === 'NotFoundError') return null; throw e; }
+  const f = await fh.getFile();
+  const p = f.size ? parseWorkbook(XLSX.read(new Uint8Array(await f.arrayBuffer()), {type:'array', cellDates:true})) : null;
+  return {p: p && p.lists.length ? p : null, mod: f.lastModified};
+}
+function applyFile(p){
+  const keep = state.activeListId;
+  state.lists = p.lists; state.tasks = p.tasks; state.activeListId = keep;
+  state = sanitize(state);
+  lastSig = dataSig();
+  commit();
+}
+function scheduleWrite(){
+  if (sync !== 'on' && sync !== 'error') return;
+  clearTimeout(writeTimer); writeTimer = setTimeout(writeFolderFile, 600);
+}
+async function writeFolderFile(){
+  if (!dirHandle || !window.XLSX || (sync !== 'on' && sync !== 'error')) return;
+  const sig = dataSig(); if (sig === lastSig) return;
+  if (writing){ scheduleWrite(); return; }
+  writing = true;
+  try {
+    const fh = await dirHandle.getFileHandle(FILE_NAME, {create:true});
+    const w = await fh.createWritable();
+    await w.write(new Uint8Array(XLSX.write(buildWorkbook(), {bookType:'xlsx', type:'array'})));
+    await w.close();
+    lastSig = sig; lastFileMod = (await fh.getFile()).lastModified; syncWarned = false;
+    setSync('on');
+  } catch(e){
+    setSync('error');
+    if (!syncWarned){ syncWarned = true; toast(`Couldn't save to ${FILE_NAME}. If it's open in Excel, close it and it will retry.`); }
+  } finally { writing = false; }
+}
+async function connect(handle, interactive){
+  dirHandle = handle;
+  await kvSet('dir', handle);
+  await xlsxReady();
+  if (!window.XLSX){ setSync('paused'); toast(NO_XLSX); return; }
+  let r;
+  try { r = await readFolderFile(); } catch(e){ setSync('error'); toast(`Couldn't read ${FILE_NAME}.`); return; }
+  setSync('on');
+  if (!r || !r.p){ lastSig = ''; await writeFolderFile(); if (interactive) toast(`Syncing to ${handle.name}/${FILE_NAME}`); return; }
+  lastFileMod = r.mod;
+  const fileWins = () => { applyFile(r.p); toast(`Loaded ${FILE_NAME} from ${handle.name}`); };
+  const boardWins = async () => { lastSig = ''; await writeFolderFile(); toast(`Syncing to ${handle.name}/${FILE_NAME}`); };
+  if (isBlank()) return fileWins();
+  if (!interactive) return r.mod > (state.updatedAt || 0) ? fileWins() : boardWins();
+  showModal(`<div class="sheet small"><h3 class="serif">${FILE_NAME} already exists</h3>
+    <p>This folder has a saved board with ${plural(r.p.tasks.length,'task')}. Which one should be kept?</p>
+    <div class="choice">
+      <button class="opt" data-keep="file"><b>Load the file</b><span>Replace what's on screen with the saved board.</span></button>
+      <button class="opt" data-keep="board"><b>Keep what's on screen</b><span>Overwrite the file with your current board.</span></button>
+    </div></div>`,
+    s => s.addEventListener('click', e => {
+      const b = e.target.closest('[data-keep]'); if (!b) return;
+      closeModal(); b.dataset.keep === 'file' ? fileWins() : boardWins();
+    }));
+}
+async function pickFolder(){
+  let h;
+  try { h = await window.showDirectoryPicker({id:'prioritizer', mode:'readwrite'}); }
+  catch(e){ if (e.name !== 'AbortError') toast("Couldn't use that folder. Try one in Documents or Desktop."); return; }
+  connect(h, true);
+}
+async function reconnect(){
+  try {
+    const p = await dirHandle.requestPermission({mode:'readwrite'});
+    if (p === 'granted') return connect(dirHandle, false);
+  } catch(e){}
+  toast('Sync is paused. Click the folder icon to try again.');
+}
+async function stopSync(){
+  dirHandle = null; clearTimeout(writeTimer); await kvSet('dir', undefined); setSync('off');
+  toast('Stopped syncing. Your board is still saved in this browser.');
+}
+function onSyncClick(btn){
+  hideTip();
+  if (fsOK && sync === 'off') return pickFolder();
+  if (fsOK && sync === 'paused') return reconnect();
+  closeMenu();
+  menuEl = document.createElement('div'); menuEl.className = 'menu';
+  menuEl.innerHTML = (fsOK ? `<button data-s="now">Save now</button><button data-s="change">Change folder</button>` : '')
+    + `<button data-s="download">Download a copy</button><button data-s="import">Import a file</button>`
+    + (fsOK ? `<button data-s="stop" class="danger">Stop syncing</button>` : '');
+  document.body.appendChild(menuEl);
+  const r = btn.getBoundingClientRect();
+  menuEl.style.left = Math.max(8, Math.min(r.right - menuEl.offsetWidth, innerWidth - menuEl.offsetWidth - 8)) + 'px';
+  menuEl.style.top = (r.bottom + 6) + 'px';
+  menuEl.addEventListener('click', async e => {
+    const b = e.target.closest('[data-s]'); if (!b) return;
+    closeMenu();
+    if (b.dataset.s === 'now'){ lastSig = ''; await writeFolderFile(); if (sync === 'on') toast('Saved'); }
+    if (b.dataset.s === 'change') pickFolder();
+    if (b.dataset.s === 'download') exportXlsx();
+    if (b.dataset.s === 'import') $('#importFile').click();
+    if (b.dataset.s === 'stop') stopSync();
+  });
+}
+// Pick up edits made to the file in Excel while this tab was in the background.
+async function checkExternal(){
+  if (sync !== 'on' || writing || !dirHandle || !window.XLSX) return;
+  try {
+    const fh = await dirHandle.getFileHandle(FILE_NAME), f = await fh.getFile();
+    if (f.lastModified <= lastFileMod) return;
+    lastFileMod = f.lastModified;
+    const r = await readFolderFile();
+    if (r && r.p){ applyFile(r.p); toast('Loaded changes from Excel'); }
+  } catch(e){}
+}
+async function restoreSync(){
+  setSync('off');
+  if (!fsOK) return;
+  let h; try { h = await kvGet('dir'); } catch(e){}
+  if (!h) return;
+  dirHandle = h;
+  let perm = 'prompt';
+  try { perm = await h.queryPermission({mode:'readwrite'}); } catch(e){}
+  if (perm === 'granted') return connect(h, false);
+  setSync('paused');
+  toast(`Reconnect to ${h.name} to keep syncing`, 'Reconnect', reconnect, 20000);
+}
+
+render();
+restoreSync();
+})();
+</script>
+</body>
+</html>
