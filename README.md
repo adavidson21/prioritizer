@@ -19,9 +19,11 @@ A simple, single-page task app for deciding what to work on. Add a task once and
 - Tabs are lists; lists can be split into sections. Double-click a tab, section, or person to rename it.
 - Shortcuts: `N` to add, `1` to `4` to switch views.
 
-## Saving
+## Saving and syncing
 
-- Everything saves automatically in your browser.
+- Everything saves automatically in your browser, so it works offline.
+- **Sign in** (person icon, top right) with any email and password to sync your board across your laptop and phone. Changes from each device are merged, not overwritten. Sign-in is powered by Supabase; run `supabase-setup.sql` once and paste the project URL and publishable key into `CLOUD` in `index.html`.
+- On a phone, use your browser's "Add to Home Screen" to open it like an app.
 - The folder icon (top right) can sync to `prioritizer.xlsx` in a folder you choose (Chrome or Edge). Green check means syncing; red X means it needs attention. The same menu has Download a copy and Import a file.
 - The Excel file has one sheet per list and is easy to read and edit.
 
