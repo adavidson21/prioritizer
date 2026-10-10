@@ -65,6 +65,9 @@ svg{display:block}
 .tab.add svg{width:1rem;height:1rem}
 .tab.add:hover{color:var(--accent)}
 .drop-target{background:var(--accent-soft)!important;color:var(--ink)!important}
+.subtabs:empty{display:none}
+.tabsec{margin-left:auto;align-self:center;flex:none}
+.lists:has(.subtabs:empty) .tabs{padding-bottom:.3rem}
 .subtabs{display:flex;gap:.4rem;align-items:center;padding:.55rem 0;flex-wrap:wrap}
 .chip{display:flex;align-items:center;gap:.35rem;padding:.24rem .7rem;border-radius:999px;font-size:.82rem;color:var(--muted);border:1px solid var(--line);background:var(--surface);cursor:pointer;user-select:none;transition:.15s}
 .chip:hover{color:var(--ink);border-color:#E0D2CC}
@@ -215,7 +218,7 @@ main.matrix-view{display:flex;flex-direction:column}
 .seg button{padding:.32rem .75rem;border-radius:999px;font-size:.83rem;border:1px solid var(--line);color:var(--muted)}
 .seg button:hover{color:var(--ink);border-color:#E0D2CC}
 .seg button.on{background:var(--ink);border-color:var(--ink);color:#fff}
-.sheet select,.sheet input[type=text],.sheet input:not([type]){width:100%;border:1px solid var(--line);border-radius:10px;padding:.55rem .7rem;outline:0;background:#fff}
+.sheet select,.sheet input[type=text],.sheet input:not([type]),.sheet .ed-people{width:100%;border:1px solid var(--line);border-radius:10px;padding:.55rem .7rem;outline:0;background:#fff}
 .choice{display:grid;gap:.55rem;margin-top:.8rem}
 .opt{text-align:left;border:1px solid var(--line);border-radius:14px;padding:.75rem .9rem;display:grid;gap:.15rem;transition:.15s}
 .opt:hover{border-color:var(--accent);background:var(--accent-soft)}
@@ -226,6 +229,7 @@ main.matrix-view{display:flex;flex-direction:column}
 .menu{position:fixed;z-index:40;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);padding:.3rem;min-width:11rem;animation:pop .12s ease}
 .menu button{display:block;width:100%;text-align:left;padding:.5rem .7rem;border-radius:8px;font-size:.9rem}
 .menu button:hover{background:var(--hover)}
+.menu b{font-weight:600}
 .menu .danger{color:var(--danger)}
 .toast{position:fixed;left:50%;bottom:1.5rem;z-index:60;transform:translate(-50%,1rem);opacity:0;pointer-events:none;background:var(--ink);color:#fff;padding:.6rem .8rem .6rem 1.1rem;border-radius:12px;display:flex;gap:1rem;align-items:center;font-size:.9rem;box-shadow:var(--shadow-lg);transition:opacity .2s,transform .2s;max-width:calc(100vw - 2rem)}
 .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
@@ -233,6 +237,96 @@ main.matrix-view{display:flex;flex-direction:column}
 .toast button:hover{background:rgba(255,255,255,.1)}
 @keyframes pop{from{opacity:0;transform:scale(.97) translateY(4px)}to{opacity:1;transform:none}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* note quick button (focus today) + extra tags */
+.nbtn{position:absolute;top:.5rem;right:.45rem;width:1.6rem;height:1.6rem;border-radius:7px;display:grid;place-items:center;color:rgba(59,50,53,.42);opacity:0;transition:opacity .15s,background .15s,color .15s}
+.nbtn svg{width:.95rem;height:.95rem}
+.note:hover .nbtn,.note:focus-within .nbtn,.nbtn.on{opacity:1}
+.nbtn:hover{background:rgba(255,255,255,.75);color:var(--ink)}
+.nbtn.on{color:#B9832A}
+.nbtn.on circle{fill:currentColor}
+.note .title{padding-right:1.2rem}
+.tag.wait{background:#FFF1CF;color:#86601C}
+.tag.person{background:rgba(255,255,255,.88)}
+.btn:disabled{opacity:.45;cursor:default}
+.soft{font-size:.82rem;color:var(--muted);margin:.6rem 0 0}
+.ranklist.drop-over{outline:2px dashed var(--accent);outline-offset:6px;border-radius:12px}
+
+/* lens switcher inside Prioritize */
+.viewbar{display:flex;align-items:center;gap:.6rem 1rem;flex-wrap:wrap;margin:.3rem 0 .9rem}
+.lens{display:flex;gap:2px;padding:3px;background:#F3ECE7;border-radius:10px;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.lens button{padding:.3rem .75rem;border-radius:8px;font-size:.84rem;font-weight:500;color:var(--muted);white-space:nowrap}
+.lens button:hover{color:var(--ink)}
+.lens button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+.viewbar .count{white-space:nowrap}
+.viewbar .suggest{margin-left:auto}
+
+/* compact notes (side panels, people cards) */
+.note.mini{padding:.45rem 2rem .45rem 2.05rem;border-radius:10px;box-shadow:var(--shadow-sm)}
+.note.mini:hover{transform:none;box-shadow:var(--shadow)}
+.note.mini .check{top:.52rem;left:.62rem}
+.note.mini .title{font-size:.92rem;padding-right:0}
+.note.mini .meta{margin-top:.3rem}
+.note.mini .nbtn{top:.3rem;right:.3rem}
+
+/* focus view */
+.focus{display:grid;gap:1.5rem 2rem;grid-template-columns:minmax(0,1fr)}
+@media (min-width:1100px){.focus{grid-template-columns:minmax(0,1.7fr) minmax(18rem,1fr);align-items:start}}
+.fhead{display:flex;align-items:baseline;gap:.3rem .9rem;flex-wrap:wrap;margin:.2rem 0 .7rem}
+.fhead h2{margin:0;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:1.75rem;letter-spacing:-.01em}
+.fhead .date{color:var(--muted)}
+.fhead .count{margin-left:auto}
+.progress{height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin:0 0 .9rem}
+.progress i{display:block;height:100%;background:var(--accent);border-radius:4px;transition:width .3s}
+.banner{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:.6rem .7rem .6rem 1rem;margin-bottom:1rem;font-size:.9rem;box-shadow:var(--shadow-sm)}
+.banner span{flex:1;min-width:12rem}
+.focus-empty{border:1.5px dashed #E6D9D3;border-radius:16px;padding:2.2rem 1rem;text-align:center;color:var(--muted);font-size:.92rem}
+.focus-empty .serif{display:block;font-size:1.2rem;color:var(--ink);margin-bottom:.25rem}
+.panel{background:rgba(255,255,255,.55);border:1px solid var(--line);border-radius:16px;padding:.8rem .85rem .85rem;transition:border-color .15s,background .15s}
+.panel+.panel{margin-top:1rem}
+.panel.drop-over,.pcard.drop-over{border-color:var(--accent);background:var(--accent-soft)}
+.panel>header,.pcard>header{display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem}
+.panel h3{margin:0;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:1.08rem}
+.panel>header .n,.pcard>header .n{font-size:.75rem;color:var(--muted)}
+.lnk{margin-left:auto;font-size:.8rem;color:var(--accent);font-weight:500;border-radius:6px;padding:.1rem .3rem}
+.lnk:hover{background:var(--accent-soft)}
+.stack{display:flex;flex-direction:column;gap:.45rem}
+.pempty{font-size:.84rem;color:var(--faint);padding:.15rem 0}
+
+/* people view */
+.ptool{display:flex;align-items:center;gap:.75rem;margin:.3rem 0 .9rem}
+.ptool .btn{margin-left:auto}
+.people{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr));gap:1rem;align-items:start}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:.85rem .85rem .75rem;box-shadow:var(--shadow-sm);transition:border-color .15s,background .15s}
+.avatar{width:2rem;height:2rem;border-radius:50%;display:grid;place-items:center;font-size:.76rem;font-weight:600;background:var(--c);flex:none}
+.pname{font-family:Fraunces,Georgia,serif;font-size:1.12rem;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcard>header .more{margin-left:auto}
+.pcard:hover>header .more{opacity:1}
+.sub{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:.8rem 0 .4rem}
+.pcard>header+.sub{margin-top:0}
+.pform input{width:100%;margin-top:.7rem;border:1px dashed #E6D9D3;border-radius:10px;padding:.45rem .65rem;background:transparent;outline:none;font-size:.88rem}
+.pform input::placeholder{color:var(--faint)}
+.pform input:focus{border-style:solid;border-color:#D9C3CB;background:#fff}
+
+/* weekly recap */
+.recap{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:1rem 1.1rem 1.05rem;box-shadow:var(--shadow-sm);margin:.3rem 0 1.6rem}
+.recap>header{display:flex;align-items:center;gap:.3rem .7rem;flex-wrap:wrap}
+.recap h3,.arch-head h3{margin:0;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:1.2rem}
+.wknav{display:flex;gap:.15rem;margin-left:auto}
+.wknav button{width:1.9rem;height:1.9rem;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+.wknav button:hover:not(:disabled){background:var(--hover);color:var(--ink)}
+.wknav button:disabled{opacity:.3;cursor:default}
+.wknav svg{width:1rem;height:1rem}
+.big{font-family:Fraunces,Georgia,serif;font-size:2.3rem;line-height:1;margin:.8rem 0 .1rem}
+.big small{font-family:Inter,system-ui,sans-serif;font-size:.9rem;color:var(--muted);margin-left:.45rem}
+.chips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.65rem 0 0}
+.chips .tag{font-size:.74rem;padding:.15rem .6rem;background:#F6EFEC}
+.recap-lists{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,16rem),1fr));gap:.3rem 1.5rem;margin-top:.9rem}
+.recap-lists h4{margin:.4rem 0 .25rem;font-size:.82rem;font-weight:600}
+.recap-lists ul{margin:0;padding-left:1.1rem;font-size:.9rem}
+.recap-lists li{margin:.15rem 0}
+.recap footer{display:flex;align-items:center;gap:.4rem .8rem;margin-top:1rem;flex-wrap:wrap}
+.recap footer .soft{margin:0}
 
 /* small windows */
 @media (max-width:760px){
@@ -246,8 +340,8 @@ main.matrix-view{display:flex;flex-direction:column}
 @media (max-width:640px){
   .top{gap:.6rem .75rem;padding-top:.75rem}
   .views{order:3;width:100%}
-  .views button{flex:1;padding:.42rem .5rem}
-  .rankbar .suggest{width:100%}
+  .views button{flex:1 1 auto;padding:.42rem .5rem}
+  .viewbar .suggest{width:100%}
   .arch-head{flex-wrap:wrap}
 }
 @media (max-width:420px){
@@ -259,7 +353,7 @@ main.matrix-view{display:flex;flex-direction:column}
 }
 /* touch screens: no hover, so keep controls visible and tap targets roomy */
 @media (hover:none){
-  .more{opacity:1}
+  .more,.nbtn{opacity:1}
   .ibtn,.qadd,.addbtn,.icon-btn{min-width:2.5rem;min-height:2.5rem}
 }
 /* short windows: let the page scroll instead of squeezing the matrix */
@@ -272,10 +366,10 @@ main.matrix-view{display:flex;flex-direction:column}
 <header class="top">
   <div class="brand"><i></i><span>Prioritizer</span></div>
   <nav class="views" aria-label="Views">
-    <button data-view="rank" title="Shortcut: 1">List</button>
-    <button data-view="eisen" title="Shortcut: 2">Eisenhower</button>
-    <button data-view="ve" title="Shortcut: 3">Value / Effort</button>
-    <button data-view="archive" title="Shortcut: 4">Archive</button>
+    <button data-nav="focus" data-tip="Today's short list. Shortcut: 1">Focus</button>
+    <button data-nav="prio" data-tip="Rank and sort everything. Shortcut: 2">Prioritize</button>
+    <button data-nav="people" data-tip="Tasks grouped by person. Shortcut: 3">People</button>
+    <button data-nav="archive" data-tip="Finished work and weekly recap. Shortcut: 4">Archive</button>
   </nav>
   <div class="actions">
     <button class="ibtn" id="syncBtn" aria-label="Save to folder" data-sync="off">
@@ -323,12 +417,18 @@ const VQ = {
   fill:  {title:'Fill-ins',   sub:'Low value, low effort',   value:'low',  effort:'low'},
   pit:   {title:'Money pits', sub:'Low value, high effort',  value:'low',  effort:'high'}
 };
+const VIEWS = ['focus','rank','eisen','ve','people','archive'];
+const LENSES = {rank:'List', eisen:'Eisenhower', ve:'Value / Effort'};
+const NAV_OF = v => (v in LENSES) ? 'prio' : v;
 const E_ORDER = ['do','schedule','delegate','drop',null];
 const V_ORDER = ['quick','big','fill','pit',null];
 const ICON = {
   check:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.3 2.3 4.7-5"/></svg>',
   dots:'<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="12.5" cy="8" r="1.3"/></svg>',
   plus:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>',
+  sun:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="2.7"/><path d="M8 1.6v1.3M8 13.1v1.3M1.6 8h1.3M13.1 8h1.3M3.5 3.5l.9.9M11.6 11.6l.9.9M3.5 12.5l.9-.9M11.6 4.4l.9-.9"/></svg>',
+  chevL:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5L5.5 8l4.5 4.5"/></svg>',
+  chevR:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5L10.5 8 6 12.5"/></svg>',
   trash:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/></svg>'
 };
 
@@ -344,7 +444,7 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 /* ---------- state ---------- */
 function fresh(){
   const main = {id:uid(), name:'Main', parentId:null};
-  return {version:1, lists:[main], activeListId:main.id, includeSub:true, view:'rank', colorIdx:0, tasks:[]};
+  return {version:1, lists:[main], activeListId:main.id, includeSub:true, view:'focus', lens:'rank', colorIdx:0, tasks:[], people:[]};
 }
 function normalizeRanks(s){
   s.tasks.sort((a,b) => (a.rank ?? 0) - (b.rank ?? 0)).forEach((t,i) => t.rank = i + 1);
@@ -354,7 +454,19 @@ function sanitize(s){
   s.tasks = Array.isArray(s.tasks) ? s.tasks : [];
   s.includeSub = s.includeSub !== false;
   s.colorIdx = Number.isFinite(s.colorIdx) ? s.colorIdx : 0;
-  if (!['rank','eisen','ve','archive'].includes(s.view)) s.view = 'rank';
+  if (!VIEWS.includes(s.view)) s.view = 'rank';
+  if (!(s.lens in LENSES)) s.lens = (s.view in LENSES) ? s.view : 'rank';
+  // people: one canonical spelling per name, shared by every task
+  const known = new Map();
+  const note = n => { n = String(n ?? '').trim(); if (n && !known.has(n.toLowerCase())) known.set(n.toLowerCase(), n); };
+  (Array.isArray(s.people) ? s.people : []).forEach(note);
+  s.tasks.forEach(t => { (Array.isArray(t.people) ? t.people : []).forEach(note); });
+  s.people = [...known.values()];
+  s.tasks.forEach(t => {
+    t.people = [...new Set((Array.isArray(t.people) ? t.people : []).map(n => known.get(String(n).trim().toLowerCase())).filter(Boolean))];
+    t.waiting = t.waiting === true;
+    if (t.focusOn && !/^\d{4}-\d{2}-\d{2}$/.test(t.focusOn)) t.focusOn = null;
+  });
   const ids = new Set(s.lists.map(l => l.id));
   s.lists.forEach(l => {
     if (l.parentId && !ids.has(l.parentId)) l.parentId = null;
@@ -398,6 +510,25 @@ function visibleTasks(){
     .filter(t => ids.includes(t.listId) && (!t.done || isDoneToday(t)))
     .sort((a,b) => a.rank - b.rank);
 }
+const isFocus = t => t.focusOn === todayStr() && (!t.done || isDoneToday(t));
+function canonPerson(n){
+  n = String(n ?? '').trim().replace(/^@/, '');
+  if (!n) return null;
+  const hit = state.people.find(p => p.toLowerCase() === n.toLowerCase());
+  if (hit) return hit;
+  n = n[0].toUpperCase() + n.slice(1);
+  state.people.push(n);
+  return n;
+}
+// "Review promo doc @Brandon" -> title "Review promo doc", people ["Brandon"]
+function parseAt(title){
+  const people = [];
+  const rest = title.replace(/(^|\s)@([\p{L}\p{N}_'-]+(?:\.[\p{L}\p{N}_'-]+)*)/gu, (m, sp, name) => { people.push(name); return sp; })
+    .replace(/\s+/g, ' ').trim();
+  return {title: rest || title.trim(), people};
+}
+const initials = n => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+function colorFor(n){ let h = 0; for (const ch of n.toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return COLORS[h % COLORS.length]; }
 function eKey(t){
   if (t.urgent == null || t.important == null) return null;
   return Object.keys(EQ).find(k => EQ[k].urgent === t.urgent && EQ[k].important === t.important) || null;
@@ -411,11 +542,14 @@ function vKey(t){
 function addTask(title, attrs = {}){
   title = String(title || '').trim();
   if (!title) return false;
+  const parsed = parseAt(title);
+  title = parsed.title;
+  const people = [...new Set([...(attrs.people || []), ...parsed.people].map(canonPerson).filter(Boolean))];
   const maxRank = state.tasks.reduce((m,t) => Math.max(m, t.rank), 0);
   state.tasks.push({
     id:uid(), title, notes:'', color:COLORS[state.colorIdx++ % COLORS.length], rank:maxRank + 1,
     urgent:null, important:null, value:null, effort:null,
-    listId:activeList().id, done:false, doneAt:null, createdAt:todayStr(), ...attrs
+    listId:activeList().id, done:false, doneAt:null, createdAt:todayStr(), waiting:false, focusOn:null, ...attrs, people
   });
   commit();
   return true;
@@ -425,6 +559,13 @@ function toggleDone(id){
   t.done = !t.done;
   t.doneAt = t.done ? todayStr() : null;
   commit();
+}
+function toggleFocus(id){
+  const t = findTask(id); if (!t) return;
+  const on = t.focusOn === todayStr();
+  t.focusOn = on ? null : todayStr();
+  commit();
+  if (!on && state.view !== 'focus') toast('Added to Focus');
 }
 function deleteTask(id){
   const i = state.tasks.findIndex(t => t.id === id); if (i < 0) return;
@@ -463,17 +604,36 @@ function suggest(mode){
 const main = $('#main');
 let openQuad = null;
 
+let showAllPick = false, weekOff = 0;
+const ADD_TIPS = {
+  focus: 'Adds to today. Tag people with @name. Shortcut: N',
+  rank: 'Adds to the bottom of the list. Tag people with @name. Shortcut: N',
+  eisen: 'Lands in Unsorted, or use + on a quadrant. Tag people with @name. Shortcut: N',
+  ve: 'Lands in Unsorted, or use + on a quadrant. Tag people with @name. Shortcut: N',
+  people: 'Tag people with @name to file it under them. Shortcut: N'
+};
+function setView(v){
+  if (!VIEWS.includes(v)) return;
+  if (v in LENSES) state.lens = v;
+  state.view = v; openQuad = null; commit();
+}
 function render(){
-  document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === state.view));
+  const nav = NAV_OF(state.view);
+  document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('on', b.dataset.nav === nav));
   renderTabs();
-  const qa = $('#quickadd');
-  qa.hidden = state.view === 'archive';
-  $('#addBtn').dataset.tip = state.view === 'rank' ? 'Adds to the bottom of the list. Shortcut: N'
-    : 'Lands in Unsorted. Use + on a quadrant to add straight into it. Shortcut: N';
+  $('#quickadd').hidden = state.view === 'archive';
+  $('#addBtn').dataset.tip = ADD_TIPS[state.view] || '';
+  $('#qaInput').placeholder = state.view === 'focus' ? 'Add a task for today' : `Add a task to ${activeList().name}`;
   main.className = (state.view === 'eisen' || state.view === 've') ? 'matrix-view' : '';
   if (state.view === 'rank') renderRank();
+  else if (state.view === 'focus') renderFocus();
+  else if (state.view === 'people') renderPeople();
   else if (state.view === 'archive') renderArchive();
   else renderMatrix(state.view);
+}
+function lensBar(extra = ''){
+  return `<div class="viewbar"><div class="lens" role="tablist" aria-label="Prioritize by">${Object.entries(LENSES).map(([k, n]) =>
+    `<button data-view="${k}" role="tab" aria-selected="${state.view === k}"${state.view === k ? ' class="on"' : ''}>${n}</button>`).join('')}</div>${extra}</div>`;
 }
 
 function openCount(listIds){ return state.tasks.filter(t => !t.done && listIds.includes(t.listId)).length; }
@@ -489,6 +649,12 @@ function renderTabs(){
   }).join('') + `<button class="tab add" id="addList" aria-label="New list" data-tip="New list">${ICON.plus}</button>`;
 
   const top = listById(topId), kids = childrenOf(topId);
+  // no sections yet: offer one quietly at the end of the tab row instead of spending a whole row on it
+  if (!kids.length){
+    $('#tabs').insertAdjacentHTML('beforeend', `<div class="chip add tabsec" data-addsub="${topId}" role="button" tabindex="0" data-tip="Split ${esc(top.name)} into sections">+ Section</div>`);
+    $('#subtabs').innerHTML = '';
+    return;
+  }
   let html = '';
   if (kids.length){
     html += `<div class="chip${a.id === topId ? ' on' : ''}" data-list="${topId}" data-droplist="${topId}" role="button" tabindex="0"><span class="lname">${esc(top.name)}</span></div>`;
@@ -508,15 +674,20 @@ function badges(t){
   const e = eKey(t), v = vKey(t);
   return (e ? `<span class="tag">${EQ[e].title}</span>` : '') + (v ? `<span class="tag">${VQ[v].title}</span>` : '');
 }
-function card(t, rank){
-  const multi = scopeListIds().length > 1;
+// o.mini: compact row; o.global: view spans all lists; o.skipPerson: hide that person's tag
+function card(t, rank, o = {}){
   const L = listById(t.listId);
-  const listTag = multi && t.listId !== state.activeListId ? `<span class="tag list">${esc(L.name)}</span>` : '';
-  const meta = listTag + (rank != null ? badges(t) : '');
+  const showList = (o.global || scopeListIds().length > 1) && t.listId !== state.activeListId;
+  let meta = showList ? `<span class="tag list">${esc(L.name)}</span>` : '';
+  if (t.waiting && !t.done) meta += `<span class="tag wait">Waiting</span>`;
+  meta += t.people.filter(p => p !== o.skipPerson).map(p => `<span class="tag person">@${esc(p)}</span>`).join('');
+  if (rank != null && !o.mini) meta += badges(t);
   const color = COLORS.includes(t.color) ? t.color : 'blush';
-  return `<article class="note c-${color}${t.done ? ' done' : ''}" draggable="true" data-id="${t.id}" tabindex="0">`
+  const fon = t.focusOn === todayStr();
+  return `<article class="note c-${color}${t.done ? ' done' : ''}${o.mini ? ' mini' : ''}" draggable="true" data-id="${t.id}" tabindex="0">`
     + (rank != null ? `<span class="rank">${rank}</span>` : '')
     + `<button class="check" data-act="done" aria-label="${t.done ? 'Mark not done' : 'Mark done'}" title="${t.done ? 'Completed today. Click to reopen.' : 'Mark done'}">${ICON.check}</button>`
+    + (t.done ? '' : `<button class="nbtn${fon ? ' on' : ''}" data-act="focus" aria-label="${fon ? 'Remove from today' : 'Focus today'}" data-tip="${fon ? 'Remove from today' : 'Focus today'}">${ICON.sun}</button>`)
     + `<div class="title">${esc(t.title)}</div>`
     + (t.notes ? `<div class="snip">${esc(t.notes)}</div>` : '')
     + (meta ? `<div class="meta">${meta}</div>` : '')
@@ -527,13 +698,11 @@ const emptyHTML = `<div class="empty"><span class="serif">A clean slate.</span>A
 function renderRank(){
   const vis = visibleTasks();
   const open = vis.filter(t => !t.done).length, doneToday = vis.length - open;
-  main.innerHTML = `<div class="rankbar">
-      <span class="count">${open} open${doneToday ? ` · ${doneToday} done today` : ''}</span>
+  main.innerHTML = lensBar(`<span class="count">${open} open${doneToday ? ` · ${doneToday} done today` : ''}</span>
       ${vis.length > 1 ? `<div class="suggest"><span>Suggest order</span>
-        <button class="pill" data-suggest="eisen" title="Do first, Schedule, Delegate, Drop">Eisenhower</button>
-        <button class="pill" data-suggest="ve" title="Quick wins, Big bets, Fill-ins, Money pits">Value / Effort</button>
-        <button class="pill" data-suggest="blend" title="Combine both matrices">Blend</button></div>` : ''}
-    </div>
+        <button class="pill" data-suggest="eisen" data-tip="Do first, Schedule, Delegate, Drop">Eisenhower</button>
+        <button class="pill" data-suggest="ve" data-tip="Quick wins, Big bets, Fill-ins, Money pits">Value / Effort</button>
+        <button class="pill" data-suggest="blend" data-tip="Combine both matrices">Blend</button></div>` : ''}`) + `
     <div class="ranklist dropzone" data-zone="rank">${vis.map((t,i) => card(t, i + 1)).join('')}</div>
     ${vis.length ? '' : emptyHTML}`;
 }
@@ -545,7 +714,7 @@ function renderMatrix(kind){
   const ay = kind === 'eisen' ? ['Important','Not important'] : ['High value','Low value'];
   const vis = visibleTasks();
   const un = vis.filter(t => !keyFn(t));
-  main.innerHTML = `
+  main.innerHTML = lensBar() + `
     <section class="tray dropzone${un.length ? '' : ' empty'}" data-zone="none">
       <header><b>Unsorted</b><span>${un.length ? `${un.length} to place. Drag into a quadrant.` : 'Everything is placed. Drop a note here to unsort it.'}</span></header>
       <div class="notes">${un.map(t => card(t)).join('')}</div>
@@ -565,6 +734,102 @@ function renderMatrix(kind){
   if (openQuad){ const i = main.querySelector('.qform input'); if (i) i.focus(); }
 }
 
+function renderFocus(){
+  const today = todayStr();
+  const focus = state.tasks.filter(isFocus).sort((a,b) => a.rank - b.rank);
+  const open = focus.filter(t => !t.done).length, done = focus.length - open;
+  const left = state.tasks.filter(t => !t.done && t.focusOn && t.focusOn < today);
+  const ids = scopeListIds();
+  const pickAll = state.tasks.filter(t => ids.includes(t.listId) && !t.done && t.focusOn !== today).sort((a,b) => a.rank - b.rank);
+  const pick = showAllPick ? pickAll : pickAll.slice(0, 6);
+  const waiting = state.tasks.filter(t => t.waiting && !t.done).sort((a,b) => a.rank - b.rank);
+  const dateLbl = new Date().toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
+  main.innerHTML = `<div class="focus">
+    <div class="fmain">
+      ${left.length ? `<div class="banner"><span>${plural(left.length,'unfinished task')} from an earlier day. Keep going today?</span>
+        <button class="btn" data-left="clear">Back to lists</button><button class="btn primary" data-left="carry">Add to today</button></div>` : ''}
+      <div class="fhead"><h2>Today</h2><span class="date">${dateLbl}</span>${focus.length ? `<span class="count">${done} of ${focus.length} done</span>` : ''}</div>
+      ${focus.length ? `<div class="progress"><i style="width:${Math.round(done / focus.length * 100)}%"></i></div>` : ''}
+      <div class="ranklist dropzone" data-zone="rank">${focus.map((t,i) => card(t, i + 1, {global:true})).join('')
+        || `<div class="focus-empty"><span class="serif">What matters today?</span>Add a task above, or pick 3 to 5 from Up next.</div>`}</div>
+      ${open > 5 ? `<p class="soft">That's ${open} tasks. Focus works best with 3 to 5.</p>` : ''}
+    </div>
+    <aside class="side">
+      <section class="panel dropzone" data-zone="unfocus">
+        <header><h3>Up next</h3><span class="n">from ${esc(activeList().name)}</span>${pickAll.length > 6 ? `<button class="lnk" data-pickall>${showAllPick ? 'Show less' : `Show all ${pickAll.length}`}</button>` : ''}</header>
+        <div class="stack">${pick.map(t => card(t, null, {mini:true})).join('') || `<div class="pempty">Nothing else open in this list.</div>`}</div>
+        ${pick.length ? `<p class="soft">Click the sun or drag a task into Today.</p>` : ''}
+      </section>
+      <section class="panel">
+        <header><h3>Waiting on others</h3>${waiting.length ? `<span class="n">${waiting.length}</span>` : ''}</header>
+        <div class="stack">${waiting.map(t => card(t, null, {mini:true, global:true})).join('') || `<div class="pempty">Nothing blocked. Mark a task as waiting from its editor.</div>`}</div>
+      </section>
+    </aside>
+  </div>`;
+}
+
+function renderPeople(){
+  const ppl = state.people;
+  const tasksFor = n => state.tasks.filter(t => t.people.includes(n) && (!t.done || isDoneToday(t))).sort((a,b) => a.rank - b.rank);
+  const head = `<div class="ptool"><span class="count">${ppl.length} ${ppl.length === 1 ? 'person' : 'people'}</span><button class="btn" data-addperson>+ Person</button></div>`;
+  if (!ppl.length){
+    main.innerHTML = head + `<div class="empty"><span class="serif">No people yet.</span>Type @name in any task, like "Review promo doc @Brandon", or click + Person.</div>`;
+    return;
+  }
+  main.innerHTML = head + `<div class="people">${ppl.map(p => {
+    const ts = tasksFor(p);
+    const wait = ts.filter(t => t.waiting && !t.done), rest = ts.filter(t => !(t.waiting && !t.done));
+    const open = ts.filter(t => !t.done).length;
+    const rows = list => `<div class="stack">${list.map(t => card(t, null, {mini:true, global:true, skipPerson:p})).join('')}</div>`;
+    return `<section class="pcard dropzone" data-zone="person" data-person="${esc(p)}">
+      <header><span class="avatar c-${colorFor(p)}">${esc(initials(p))}</span><span class="pname" data-tip="Double-click to rename">${esc(p)}</span>${open ? `<span class="n">${open} open</span>` : ''}
+        <span class="more" data-pmenu="${esc(p)}" role="button" tabindex="0" aria-label="Options for ${esc(p)}">${ICON.dots}</span></header>
+      ${wait.length ? `<div class="sub">Waiting on them</div>${rows(wait)}` : ''}
+      ${rest.length ? `<div class="sub">${wait.length ? 'To discuss or do' : 'Open'}</div>${rows(rest)}` : ''}
+      ${ts.length ? '' : `<div class="pempty">Nothing open. Drag a task here or add one below.</div>`}
+      <form class="pform" data-person="${esc(p)}" autocomplete="off"><input placeholder="Add for ${esc(p)}" aria-label="Add a task for ${esc(p)}"></form>
+    </section>`;
+  }).join('')}</div>`;
+}
+
+function weekRange(off){
+  const s = new Date(); s.setHours(0,0,0,0);
+  s.setDate(s.getDate() - ((s.getDay() + 6) % 7) + off * 7); // Monday
+  const e = new Date(s); e.setDate(e.getDate() + 6);
+  return [s, e];
+}
+const fmtMD = d => d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+function recapData(){
+  const [s, e] = weekRange(weekOff), a = dateStr(s), b = dateStr(e), ids = scopeListIds();
+  const done = state.tasks.filter(t => t.done && t.doneAt && t.doneAt >= a && t.doneAt <= b && ids.includes(t.listId));
+  const byList = new Map();
+  topLists().flatMap(l => [l, ...childrenOf(l.id)]).forEach(L => {
+    const ts = done.filter(t => t.listId === L.id).sort((x,y) => (x.doneAt || '').localeCompare(y.doneAt || '') || x.rank - y.rank);
+    if (ts.length) byList.set(L, ts);
+  });
+  const quads = [...Object.keys(EQ), null].map(k => [k ? EQ[k].title : 'Unsorted', done.filter(t => eKey(t) === k).length]).filter(x => x[1]);
+  const waiting = state.tasks.filter(t => t.waiting && !t.done && ids.includes(t.listId)).sort((x,y) => x.rank - y.rank);
+  return {s, e, done, byList, quads, waiting};
+}
+function recapText(r){
+  const withP = t => t.people.length ? ` (${t.people.join(', ')})` : '';
+  const out = [`Week of ${fmtMD(r.s)} to ${fmtMD(r.e)}: ${plural(r.done.length,'task')} done`];
+  r.byList.forEach((ts, L) => { out.push('', L.name); ts.forEach(t => out.push(`- ${t.title}${withP(t)}`)); });
+  if (r.waiting.length){ out.push('', 'Waiting on'); r.waiting.forEach(t => out.push(`- ${t.title}${withP(t)}`)); }
+  return out.join('\n');
+}
+function copyText(text){
+  const ok = () => toast('Recap copied. Paste it anywhere.');
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).then(ok, () => fallback());
+  fallback();
+  function fallback(){
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); ok(); } catch(e){ toast("Couldn't copy. Select the text and copy it manually."); }
+    ta.remove();
+  }
+}
+
 function dayLabel(d){
   if (!d) return 'Earlier';
   if (d === todayStr()) return 'Today';
@@ -579,14 +844,26 @@ function renderArchive(){
   const ids = scopeListIds(), multi = ids.length > 1;
   const done = state.tasks.filter(t => t.done && ids.includes(t.listId))
     .sort((a,b) => (b.doneAt || '').localeCompare(a.doneAt || '') || a.rank - b.rank);
+  const r = recapData();
+  const when = weekOff === 0 ? 'This week' : weekOff === -1 ? 'Last week' : '';
+  const recap = `<section class="recap">
+    <header><h3>Weekly recap</h3><span class="count">${when ? `${when} · ` : ''}${fmtMD(r.s)} to ${fmtMD(r.e)}</span>
+      <div class="wknav"><button data-week="-1" aria-label="Previous week" data-tip="Previous week">${ICON.chevL}</button><button data-week="1" aria-label="Next week"${weekOff >= 0 ? ' disabled' : ' data-tip="Next week"'}>${ICON.chevR}</button></div></header>
+    <div class="big">${r.done.length}<small>${r.done.length === 1 ? 'task' : 'tasks'} done</small></div>
+    ${r.quads.length ? `<div class="chips">${r.quads.map(([n, c]) => `<span class="tag">${n} ${c}</span>`).join('')}</div>` : ''}
+    ${r.done.length ? `<div class="recap-lists">${[...r.byList].map(([L, ts]) => `<div><h4>${esc(L.name)}</h4><ul>${ts.map(t => `<li>${esc(t.title)}</li>`).join('')}</ul></div>`).join('')}</div>`
+      : `<p class="soft">Nothing finished ${weekOff === 0 ? 'yet this week' : 'that week'}.</p>`}
+    <footer><button class="btn primary" data-copy-recap${r.done.length || r.waiting.length ? '' : ' disabled'}>Copy recap</button>
+      ${r.waiting.length ? `<span class="soft">Also lists ${plural(r.waiting.length,'task')} you're waiting on</span>` : ''}</footer>
+  </section>`;
   if (!done.length){
-    main.innerHTML = `<div class="archive"><div class="empty"><span class="serif">Nothing archived yet.</span>Finished tasks stay crossed out for the day, then move here.</div></div>`;
+    main.innerHTML = `<div class="archive">${recap}<div class="empty"><span class="serif">Nothing archived yet.</span>Finished tasks stay crossed out for the day, then move here.</div></div>`;
     return;
   }
   const groups = new Map();
   done.forEach(t => { const k = t.doneAt || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(t); });
-  main.innerHTML = `<div class="archive">
-    <div class="arch-head"><span class="count">${plural(done.length,'completed task')}</span><button class="btn" data-clear-archive>Clear archive</button></div>
+  main.innerHTML = `<div class="archive">${recap}
+    <div class="arch-head"><h3>All completed</h3><span class="count">${done.length}</span><button class="btn" data-clear-archive>Clear archive</button></div>
     ${[...groups].map(([d,ts]) => `<div class="day"><h4>${dayLabel(d)}</h4>${ts.map(t => `
       <div class="arow c-${COLORS.includes(t.color) ? t.color : 'blush'}" data-id="${t.id}">
         <button class="check" data-act="done" title="Reopen" aria-label="Reopen task">${ICON.check}</button>
@@ -679,16 +956,21 @@ function segBtns(Q, cur){
 }
 function openEditor(id){
   const t = findTask(id); if (!t) return;
-  const d = {color: COLORS.includes(t.color) ? t.color : 'blush', e: eKey(t) || '', v: vKey(t) || ''};
+  const d = {color: COLORS.includes(t.color) ? t.color : 'blush', e: eKey(t) || '', v: vKey(t) || '', focus: t.focusOn === todayStr(), waiting: t.waiting};
   const opts = topLists().flatMap(p => [p, ...childrenOf(p.id)])
     .map(l => `<option value="${l.id}"${l.id === t.listId ? ' selected' : ''}>${l.parentId ? '\u00A0\u00A0\u00A0\u21B3 ' : ''}${esc(l.name)}</option>`).join('');
   showModal(`<div class="sheet editor c-${d.color}" role="dialog" aria-modal="true" aria-label="Edit task">
       <textarea class="ed-title serif" rows="1" placeholder="Task" aria-label="Task">${esc(t.title)}</textarea>
       <textarea class="ed-notes" rows="3" placeholder="Notes" aria-label="Notes">${esc(t.notes)}</textarea>
-      <div class="fld"><label>Color</label><div class="swatches">${COLORS.map(c => `<button type="button" class="sw c-${c}${c === d.color ? ' on' : ''}" data-color="${c}" aria-label="${c}"></button>`).join('')}</div></div>
+      <div class="fld"><label>Status</label><div class="seg">
+        <button type="button" data-tg="focus"${d.focus ? ' class="on"' : ''}>Focus today</button>
+        <button type="button" data-tg="waiting"${d.waiting ? ' class="on"' : ''}>Waiting on someone</button></div></div>
+      <div class="fld"><label>People</label><input class="ed-people" list="edPeople" value="${esc(t.people.join(', '))}" placeholder="Names, separated by commas" autocomplete="off">
+        <datalist id="edPeople">${state.people.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
       <div class="fld"><label>Eisenhower</label><div class="seg" data-seg="e">${segBtns(EQ, d.e)}</div></div>
       <div class="fld"><label>Value / Effort</label><div class="seg" data-seg="v">${segBtns(VQ, d.v)}</div></div>
       <div class="fld"><label>List</label><select aria-label="List">${opts}</select></div>
+      <div class="fld"><label>Color</label><div class="swatches">${COLORS.map(c => `<button type="button" class="sw c-${c}${c === d.color ? ' on' : ''}" data-color="${c}" aria-label="${c}"></button>`).join('')}</div></div>
       <footer><button type="button" class="btn text-danger" data-ed="delete">Delete</button><span class="grow"></span>
         <button type="button" class="btn" data-ed="cancel">Cancel</button><button type="button" class="btn primary" data-ed="save">Save</button></footer>
     </div>`, sheet => {
@@ -705,6 +987,9 @@ function openEditor(id){
         t.listId = sheet.querySelector('select').value;
         if (d.e){ t.urgent = EQ[d.e].urgent; t.important = EQ[d.e].important; } else { t.urgent = null; t.important = null; }
         if (d.v){ t.value = VQ[d.v].value; t.effort = VQ[d.v].effort; } else { t.value = null; t.effort = null; }
+        t.focusOn = d.focus ? todayStr() : null;
+        t.waiting = d.waiting;
+        t.people = [...new Set(sheet.querySelector('.ed-people').value.split(',').map(canonPerson).filter(Boolean))];
         closeModal(); commit();
       };
       title.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveEd(); } });
@@ -717,6 +1002,8 @@ function openEditor(id){
           sheet.className = sheet.className.replace(/\bc-\w+/, 'c-' + d.color);
           return;
         }
+        const tg = e.target.closest('[data-tg]');
+        if (tg){ d[tg.dataset.tg] = !d[tg.dataset.tg]; tg.classList.toggle('on', d[tg.dataset.tg]); return; }
         const sb = e.target.closest('.seg button');
         if (sb){
           const seg = sb.parentElement; d[seg.dataset.seg] = sb.dataset.val;
@@ -732,7 +1019,7 @@ function openEditor(id){
 }
 
 /* ---------- excel export / import ---------- */
-const HEADERS = ['Rank','Task','Notes','Status','Completed On','Eisenhower','Urgent','Important','Value/Effort','Value','Effort','Color','Created','ID'];
+const HEADERS = ['Rank','Task','Notes','Status','Completed On','Focus On','Waiting','People','Eisenhower','Urgent','Important','Value/Effort','Value','Effort','Color','Created','ID'];
 const yesNo = b => b === true ? 'Yes' : b === false ? 'No' : '';
 const cap = s => s ? s[0].toUpperCase() + s.slice(1) : '';
 const NO_XLSX = 'Excel tools did not load. Check your internet connection and reload.';
@@ -760,13 +1047,14 @@ function buildWorkbook(){
       return {
         'Rank': t.done ? '' : ++r, 'Task': t.title, 'Notes': t.notes || '',
         'Status': t.done ? 'Done' : 'Open', 'Completed On': t.doneAt || '',
+        'Focus On': t.focusOn || '', 'Waiting': t.waiting ? 'Yes' : '', 'People': t.people.join(', '),
         'Eisenhower': e ? EQ[e].title : '', 'Urgent': yesNo(t.urgent), 'Important': yesNo(t.important),
         'Value/Effort': v ? VQ[v].title : '', 'Value': cap(t.value), 'Effort': cap(t.effort),
         'Color': t.color, 'Created': t.createdAt || '', 'ID': t.id
       };
     });
     const ws = XLSX.utils.json_to_sheet(rows, {header: HEADERS});
-    ws['!cols'] = [6,40,40,8,13,12,8,10,13,8,8,9,11,12].map(w => ({wch:w}));
+    ws['!cols'] = [6,40,40,8,13,11,8,20,12,8,10,13,8,8,9,11,12].map(w => ({wch:w}));
     XLSX.utils.book_append_sheet(wb, ws, sheetOf.get(l.id));
   });
   const meta = XLSX.utils.json_to_sheet(ordered.map(l => ({
@@ -852,6 +1140,8 @@ function parseWorkbook(wb){
       parsed.push({i, rk: String(rkRaw).trim() !== '' && Number.isFinite(rk) ? rk : Infinity, t:{
         id:keepId(g('id')), title, notes:String(g('notes')).trim(), color: COLORS.includes(c) ? c : COLORS[ci++ % COLORS.length], rank:0,
         urgent, important, value, effort, listId:l.id, done, doneAt: done ? toDate(g('completed on')) : null,
+        focusOn: toDate(g('focus on')), waiting: yn(g('waiting')) === true,
+        people: String(g('people')).split(',').map(x => x.trim()).filter(Boolean),
         createdAt: toDate(g('created')) || todayStr()
       }});
     });
@@ -909,7 +1199,7 @@ function importFile(file){
 }
 
 /* ---------- drag and drop ---------- */
-let dragId = null, overEl = null;
+let dragId = null, dragFromPerson = null, overEl = null;
 function setOver(el){
   if (overEl === el) return;
   clearOver(); overEl = el;
@@ -927,6 +1217,7 @@ function getAfter(container, y){
 document.addEventListener('dragstart', e => {
   const n = e.target.closest && e.target.closest('.note'); if (!n) return;
   dragId = n.dataset.id;
+  const pc = n.closest('.pcard'); dragFromPerson = pc ? pc.dataset.person : null;
   e.dataTransfer.effectAllowed = 'move';
   try { e.dataTransfer.setData('text/plain', dragId); } catch(_) {}
   setTimeout(() => n.classList.add('dragging'), 0);
@@ -937,8 +1228,9 @@ document.addEventListener('dragover', e => {
   if (!z){ clearOver(); return; }
   e.preventDefault(); e.dataTransfer.dropEffect = 'move';
   if (z.dataset.zone === 'rank'){
+    const el = z.querySelector('.note.dragging');
+    if (!el){ setOver(z); return; } // coming from another panel
     clearOver();
-    const el = z.querySelector('.note.dragging'); if (!el) return;
     const after = getAfter(z, e.clientY);
     if (after == null){ if (z.lastElementChild !== el) z.appendChild(el); }
     else if (after !== el && after.previousElementSibling !== el) z.insertBefore(el, after);
@@ -957,8 +1249,19 @@ document.addEventListener('drop', e => {
     if (L && t.listId !== L.id){ t.listId = L.id; commit(); toast(`Moved to ${L.name}`); } else render();
     return;
   }
-  const zone = z.dataset.zone;
-  if (zone === 'rank'){ applyOrder([...z.querySelectorAll('.note')].map(n => n.dataset.id)); return; }
+  const zone = z.dataset.zone, from = dragFromPerson; dragFromPerson = null;
+  if (zone === 'rank'){
+    if (state.view === 'focus' && t.focusOn !== todayStr()){ t.focusOn = todayStr(); commit(); return; }
+    applyOrder([...z.querySelectorAll('.note')].map(n => n.dataset.id)); return;
+  }
+  if (zone === 'unfocus'){ if (t.focusOn === todayStr()){ t.focusOn = null; commit(); } else render(); return; }
+  if (zone === 'person'){
+    const p = z.dataset.person;
+    if (from === p) return render();
+    if (from) t.people = t.people.filter(x => x !== from); // dragged between people: move it
+    if (!t.people.includes(p)) t.people.push(p);
+    commit(); return;
+  }
   if (state.view === 'eisen'){
     if (zone === 'none'){ t.urgent = null; t.important = null; } else { t.urgent = EQ[zone].urgent; t.important = EQ[zone].important; }
   } else if (state.view === 've'){
@@ -967,7 +1270,7 @@ document.addEventListener('drop', e => {
   commit();
 });
 document.addEventListener('dragend', () => {
-  clearOver();
+  clearOver(); dragFromPerson = null;
   if (dragId){ dragId = null; render(); } // drag was cancelled: restore order
 });
 
@@ -976,16 +1279,19 @@ let lastListClick = {id:null, t:0};
 function startRename(id){
   const L = listById(id); if (!L) return;
   const span = document.querySelector(`[data-list="${id}"] .lname`); if (!span) return;
+  inlineEdit(span, L.name, 'List name', v => { L.name = v; commit(); });
+}
+function inlineEdit(span, value, label, onSave){
   hideTip();
   const inp = document.createElement('input');
-  inp.className = 'rename'; inp.value = L.name; inp.maxLength = 60; inp.setAttribute('aria-label', 'List name');
+  inp.className = 'rename'; inp.value = value; inp.maxLength = 60; inp.setAttribute('aria-label', label);
   const fit = () => { inp.style.width = Math.max(3, inp.value.length + 1) + 'ch'; };
   fit(); inp.addEventListener('input', fit);
   let done = false;
   const finish = keep => {
     if (done) return; done = true;
     const v = inp.value.trim();
-    if (keep && v && v !== L.name){ L.name = v; commit(); } else render();
+    if (keep && v && v !== value) onSave(v); else render();
   };
   inp.addEventListener('keydown', e => {
     e.stopPropagation();
@@ -997,13 +1303,59 @@ function startRename(id){
   inp.focus(); inp.select();
 }
 
+/* ---------- people ---------- */
+function renamePerson(oldN, newN){
+  newN = newN.replace(/^@/, '').trim(); if (!newN) return render();
+  const clash = state.people.find(p => p !== oldN && p.toLowerCase() === newN.toLowerCase());
+  const target = clash || newN;
+  state.people = clash ? state.people.filter(p => p !== oldN) : state.people.map(p => p === oldN ? target : p);
+  state.tasks.forEach(t => { if (t.people.includes(oldN)) t.people = [...new Set(t.people.map(p => p === oldN ? target : p))]; });
+  commit();
+  if (clash) toast(`Merged into ${clash}`);
+}
+function removePerson(n){
+  const idx = state.people.indexOf(n);
+  const hits = state.tasks.filter(t => t.people.includes(n)).map(t => t.id);
+  state.people = state.people.filter(p => p !== n);
+  state.tasks.forEach(t => { t.people = t.people.filter(p => p !== n); });
+  commit();
+  toast(`Removed ${n}`, 'Undo', () => {
+    state.people.splice(Math.min(idx, state.people.length), 0, n);
+    hits.forEach(id => { const t = findTask(id); if (t && !t.people.includes(n)) t.people.push(n); });
+    commit();
+  });
+}
+function openPersonMenu(n, anchor){
+  closeMenu();
+  menuEl = document.createElement('div'); menuEl.className = 'menu';
+  menuEl.innerHTML = `<button data-pm="rename">Rename</button><button data-pm="remove" class="danger">Remove ${esc(n)}</button>`;
+  document.body.appendChild(menuEl);
+  const r = anchor.getBoundingClientRect();
+  menuEl.style.left = Math.max(8, Math.min(r.right - menuEl.offsetWidth, innerWidth - menuEl.offsetWidth - 8)) + 'px';
+  menuEl.style.top = (r.bottom + 6) + 'px';
+  menuEl.addEventListener('click', e => {
+    const b = e.target.closest('[data-pm]'); if (!b) return;
+    closeMenu();
+    if (b.dataset.pm === 'remove') return removePerson(n);
+    const span = [...document.querySelectorAll('.pcard')].find(c => c.dataset.person === n)?.querySelector('.pname');
+    if (span) inlineEdit(span, n, 'Name', v => renamePerson(n, v));
+  });
+}
+document.addEventListener('dblclick', e => {
+  const span = e.target.closest && e.target.closest('.pname'); if (!span) return;
+  const n = span.closest('.pcard').dataset.person;
+  inlineEdit(span, n, 'Name', v => renamePerson(n, v));
+});
+
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
   if (e.target.closest('#modal')) return;
   if (menuEl){ if (menuEl.contains(e.target)) return; closeMenu(); }
   const t = e.target;
   const m = t.closest('[data-menu]'); if (m){ e.stopPropagation(); openMenu(m.dataset.menu, m); return; }
-  const v = t.closest('[data-view]'); if (v){ state.view = v.dataset.view; openQuad = null; commit(); return; }
+  const nv = t.closest('[data-nav]'); if (nv){ setView(nv.dataset.nav === 'prio' ? state.lens : nv.dataset.nav); return; }
+  const v = t.closest('[data-view]'); if (v){ setView(v.dataset.view); return; }
+  const pm = t.closest('[data-pmenu]'); if (pm){ e.stopPropagation(); openPersonMenu(pm.dataset.pmenu, pm); return; }
   if (t.closest('input.rename')) return;
   const l = t.closest('[data-list]');
   if (l){
@@ -1017,6 +1369,17 @@ document.addEventListener('click', e => {
   const as = t.closest('[data-addsub]'); if (as){ newSubList(as.dataset.addsub); return; }
   const sb = t.closest('#syncBtn'); if (sb){ onSyncClick(sb); return; }
   const chk = t.closest('[data-act="done"]'); if (chk){ toggleDone(chk.closest('[data-id]').dataset.id); return; }
+  const fb = t.closest('[data-act="focus"]'); if (fb){ toggleFocus(fb.closest('[data-id]').dataset.id); return; }
+  const lo = t.closest('[data-left]');
+  if (lo){
+    const today = todayStr();
+    state.tasks.forEach(x => { if (!x.done && x.focusOn && x.focusOn < today) x.focusOn = lo.dataset.left === 'carry' ? today : null; });
+    commit(); return;
+  }
+  if (t.closest('[data-pickall]')){ showAllPick = !showAllPick; render(); return; }
+  if (t.closest('[data-addperson]')){ askText('Add a person', '', n => { canonPerson(n); commit(); }, 'Add'); return; }
+  const wk = t.closest('[data-week]'); if (wk){ if (!wk.disabled){ weekOff = Math.min(0, weekOff + +wk.dataset.week); render(); } return; }
+  if (t.closest('[data-copy-recap]')){ copyText(recapText(recapData())); return; }
   const sg = t.closest('[data-suggest]'); if (sg){ suggest(sg.dataset.suggest); return; }
   const qa = t.closest('[data-qadd]'); if (qa){ openQuad = openQuad === qa.dataset.qadd ? null : qa.dataset.qadd; render(); return; }
   const del = t.closest('[data-delete]'); if (del){ deleteTask(del.dataset.delete); return; }
@@ -1028,7 +1391,7 @@ document.addEventListener('click', e => {
     });
     return;
   }
-  const c = t.closest('.note,.arow'); if (c && !t.closest('.qform')){ openEditor(c.dataset.id); return; }
+  const c = t.closest('.note,.arow'); if (c && !t.closest('.qform,.pform')){ openEditor(c.dataset.id); return; }
 });
 document.addEventListener('change', e => {
   if (e.target.id === 'incSub'){ state.includeSub = e.target.checked; commit(); }
@@ -1037,10 +1400,20 @@ document.addEventListener('change', e => {
 $('#quickadd').addEventListener('submit', e => {
   e.preventDefault();
   const i = $('#qaInput');
-  if (addTask(i.value)) i.value = '';
+  if (addTask(i.value, state.view === 'focus' ? {focusOn: todayStr()} : {})) i.value = '';
   i.focus();
 });
 document.addEventListener('submit', e => {
+  const pf = e.target.closest && e.target.closest('.pform');
+  if (pf){
+    e.preventDefault();
+    const p = pf.dataset.person;
+    if (addTask(pf.querySelector('input').value, {people:[p]})){
+      const again = [...document.querySelectorAll('.pform')].find(x => x.dataset.person === p);
+      if (again) again.querySelector('input').focus();
+    }
+    return;
+  }
   const f = e.target.closest && e.target.closest('.qform'); if (!f) return;
   e.preventDefault();
   const k = f.dataset.qform, val = f.querySelector('input').value;
@@ -1067,10 +1440,11 @@ document.addEventListener('keydown', e => {
   if (typing || modalOpen || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'n' || e.key === '/'){
     e.preventDefault();
-    if (state.view === 'archive'){ state.view = 'rank'; commit(); }
+    if (state.view === 'archive') setView('focus');
     $('#qaInput').focus();
   } else if (['1','2','3','4'].includes(e.key)){
-    state.view = ['rank','eisen','ve','archive'][+e.key - 1]; openQuad = null; commit();
+    const nav = ['focus','prio','people','archive'][+e.key - 1];
+    setView(nav === 'prio' ? state.lens : nav);
   } else if (e.key === 'Enter'){
     const el = e.target;
     if (el.classList && el.classList.contains('note')) openEditor(el.dataset.id);
@@ -1140,7 +1514,7 @@ function setSync(s){
     : s === 'on' ? `Syncing to ${where}`
     : s === 'paused' ? `Sync paused. Click to reconnect to ${dirHandle ? dirHandle.name : 'your folder'}.`
     : s === 'error' ? `Can't save to ${where}. Close it in Excel if it's open.`
-    : 'Not syncing. Click to choose a folder.';
+    : 'Not syncing yet. Click to choose a folder.';
   if (tipFor === b) placeTip(b);
 }
 async function readFolderFile(){
@@ -1222,13 +1596,14 @@ async function stopSync(){
 }
 function onSyncClick(btn){
   hideTip();
-  if (fsOK && sync === 'off') return pickFolder();
   if (fsOK && sync === 'paused') return reconnect();
   closeMenu();
   menuEl = document.createElement('div'); menuEl.className = 'menu';
-  menuEl.innerHTML = (fsOK ? `<button data-s="now">Save now</button><button data-s="change">Change folder</button>` : '')
+  const syncing = fsOK && sync !== 'off';
+  menuEl.innerHTML = (!fsOK ? '' : syncing ? `<button data-s="now">Save now</button><button data-s="change">Change folder</button>`
+      : `<button data-s="change"><b>Choose a sync folder</b></button>`)
     + `<button data-s="download">Download a copy</button><button data-s="import">Import a file</button>`
-    + (fsOK ? `<button data-s="stop" class="danger">Stop syncing</button>` : '');
+    + (syncing ? `<button data-s="stop" class="danger">Stop syncing</button>` : '');
   document.body.appendChild(menuEl);
   const r = btn.getBoundingClientRect();
   menuEl.style.left = Math.max(8, Math.min(r.right - menuEl.offsetWidth, innerWidth - menuEl.offsetWidth - 8)) + 'px';
