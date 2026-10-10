@@ -1707,7 +1707,7 @@ async function restoreSync(){
 /* ---------- accounts + cloud sync (Supabase) ---------- */
 // Fill these in from Supabase: Project Settings > API Keys. The publishable key is meant to be public;
 // row level security (see supabase-setup.sql) keeps every board private to its owner.
-const CLOUD = window.PRIORITIZER_CLOUD || {url: '', key: ''};
+const CLOUD = window.PRIORITIZER_CLOUD || {url: 'https://gmqnhtxukixhrqzreooi.supabase.co', key: 'sb_publishable_slkZ-uHcq1kOgamfTfexUg_KinHVvs1'};
 let sb = null, user = null;
 const cloud = {rev: 0, status: 'out', timer: null, busy: false, again: false, lastSync: 0, channel: null, poll: null};
 
