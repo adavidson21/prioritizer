@@ -17,7 +17,7 @@
   --shadow:0 1px 2px rgba(59,50,53,.05),0 6px 18px -6px rgba(59,50,53,.14);
   --shadow-lg:0 2px 4px rgba(59,50,53,.06),0 18px 40px -10px rgba(59,50,53,.24);
   --gutter:clamp(.9rem,2.5vw,2rem);
-  --note-w:clamp(8.5rem,13vw,13.5rem);
+  --note-w:clamp(9.5rem,14vw,15rem);
 }
 *{box-sizing:border-box}
 html{font-size:clamp(13px,.35vw + 10.5px,16px)}
@@ -80,7 +80,7 @@ svg{display:block}
 /* quick add */
 .quickadd{padding:.9rem var(--gutter) .5rem;display:flex;gap:.9rem;align-items:center;flex-wrap:wrap}
 .quickadd[hidden]{display:none}
-.quickadd .field{flex:1 1 18rem;max-width:44rem;display:flex;align-items:center;gap:.45rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.1rem .85rem .1rem .4rem;box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s}
+.quickadd .field{flex:1 1 100%;min-width:0;display:flex;align-items:center;gap:.45rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.1rem .85rem .1rem .4rem;box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s}
 .addbtn{width:1.9rem;height:1.9rem;border-radius:8px;display:grid;place-items:center;color:var(--faint);flex:none;transition:.15s}
 .addbtn svg{width:1rem;height:1rem}
 .addbtn:hover{background:var(--accent-soft);color:var(--accent)}
@@ -132,11 +132,11 @@ main.matrix-view{display:flex;flex-direction:column}
 .tag.list{background:rgba(59,50,53,.08)}
 
 /* list view */
-.rankbar{display:flex;align-items:center;gap:.6rem 1rem;flex-wrap:wrap;margin:.3rem 0 .9rem;max-width:52rem}
+.rankbar{display:flex;align-items:center;gap:.6rem 1rem;flex-wrap:wrap;margin:.3rem 0 .9rem}
 .count{color:var(--muted);font-size:.86rem}
 .suggest{margin-left:auto;display:flex;align-items:center;gap:.35rem;font-size:.82rem;color:var(--muted);flex-wrap:wrap}
 .suggest>span{margin-right:.2rem}
-.ranklist{display:flex;flex-direction:column;gap:.55rem;max-width:52rem;min-height:3rem}
+.ranklist{display:flex;flex-direction:column;gap:.55rem;min-height:3rem}
 .ranklist .note{padding-left:4.5rem}
 .ranklist .note .rank{position:absolute;left:.7rem;top:.5rem;width:1.7rem;text-align:right;font-family:Fraunces,Georgia,serif;font-size:1.15rem;color:rgba(59,50,53,.42)}
 .ranklist .note .check{left:2.95rem}
@@ -150,13 +150,17 @@ main.matrix-view{display:flex;flex-direction:column}
 .tray.empty{padding:.5rem .75rem}
 .tray.empty .notes{display:none}
 .tray.drop-over{border-color:var(--accent);background:var(--accent-soft)}
-.matrix{flex:1;min-height:26rem;display:grid;grid-template-columns:1.4rem 1fr;grid-template-rows:1.3rem 1fr;gap:.3rem .45rem}
-.axis-x{grid-column:2;grid-row:1;display:grid;grid-template-columns:1fr 1fr;gap:.8rem;align-items:end}
-.axis-y{grid-column:1;grid-row:2;display:grid;grid-template-rows:1fr 1fr;gap:.8rem}
+/* one grid for labels and quadrants, so rows grow with their notes and the page scrolls */
+.matrix{flex:1 0 auto;min-height:26rem;display:grid;grid-template-columns:1.4rem minmax(0,1fr) minmax(0,1fr);grid-template-rows:1.3rem minmax(min-content,1fr) minmax(min-content,1fr);gap:.3rem .8rem}
+.axis-x,.axis-y,.grid{display:contents}
+.axis-x span{grid-row:1;align-self:end}
+.axis-x span:nth-child(1){grid-column:2}.axis-x span:nth-child(2){grid-column:3}
+.axis-y span:nth-child(1){grid-column:1;grid-row:2}.axis-y span:nth-child(2){grid-column:1;grid-row:3}
+.grid>.quad:nth-child(1){grid-area:2/2}.grid>.quad:nth-child(2){grid-area:2/3}.grid>.quad:nth-child(3){grid-area:3/2}.grid>.quad:nth-child(4){grid-area:3/3}
+.matrix>.grid>.quad:nth-child(3),.matrix>.grid>.quad:nth-child(4){margin-top:.5rem}
 .axis-x span,.axis-y span{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);text-align:center;font-weight:500}
 .axis-y span{writing-mode:vertical-rl;transform:rotate(180deg);align-self:center;justify-self:center}
-.grid{grid-column:2;grid-row:2;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:.8rem;min-height:0}
-.quad{--q:var(--blush);background:color-mix(in srgb,var(--q) 40%,#fff);border-radius:18px;padding:.85rem .9rem .9rem;display:flex;flex-direction:column;min-height:0;border:1.5px solid transparent;transition:border-color .15s,background .15s}
+.quad{--q:var(--blush);background:color-mix(in srgb,var(--q) 40%,#fff);border-radius:18px;padding:.85rem .9rem .9rem;display:flex;flex-direction:column;min-height:9rem;border:1.5px solid transparent;transition:border-color .15s,background .15s}
 .quad.drop-over{border-color:color-mix(in srgb,var(--q) 100%,#3B3235 18%);background:color-mix(in srgb,var(--q) 70%,#fff)}
 .quad header{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap}
 .quad h3{margin:0;font-family:Fraunces,Georgia,serif;font-weight:500;font-size:1.15rem;letter-spacing:-.01em}
@@ -165,7 +169,7 @@ main.matrix-view{display:flex;flex-direction:column}
 .qadd{margin-left:auto;align-self:center;width:1.75rem;height:1.75rem;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
 .qadd svg{width:.95rem;height:.95rem}
 .qadd:hover{background:rgba(255,255,255,.75);color:var(--ink)}
-.quad .notes{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--note-w),1fr));align-content:start;gap:.6rem;padding:.2rem .2rem .4rem}
+.quad .notes{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--note-w),1fr));align-content:start;gap:.6rem;padding:.2rem .2rem .4rem}
 .quad .note:nth-child(3n+1),.tray .note:nth-child(3n+1){rotate:-.5deg}
 .quad .note:nth-child(3n+2),.tray .note:nth-child(3n+2){rotate:.45deg}
 .quad .note:hover,.tray .note:hover{rotate:0deg}
@@ -177,7 +181,7 @@ main.matrix-view{display:flex;flex-direction:column}
 .q-quick{--q:var(--sage)}.q-big{--q:var(--lavender)}.q-fill{--q:var(--sky)}.q-pit{--q:var(--peach)}
 
 /* archive */
-.archive{max-width:44rem}
+.archive{width:100%}
 .arch-head{display:flex;align-items:center;gap:1rem;margin:.3rem 0 .4rem}
 .arch-head .btn{margin-left:auto}
 .day h4{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:1.02rem;margin:1.2rem 0 .5rem}
@@ -232,17 +236,35 @@ main.matrix-view{display:flex;flex-direction:column}
 
 /* small windows */
 @media (max-width:760px){
-  .matrix{display:block;min-height:0}
+  .matrix{display:flex;flex-direction:column;gap:.8rem;min-height:0}
   .axis-x,.axis-y{display:none}
-  .grid{display:grid;grid-template-columns:1fr;grid-template-rows:none}
-  .quad{min-height:9rem}
-  .quad .notes{overflow:visible}
+  .matrix>.grid>.quad:nth-child(3),.matrix>.grid>.quad:nth-child(4){margin-top:0}
   main.matrix-view{display:block}
   .suggest{margin-left:0}
   .toggle{margin-left:0}
 }
-@media (max-width:520px){
-  .actions{margin-left:0}
+@media (max-width:640px){
+  .top{gap:.6rem .75rem;padding-top:.75rem}
+  .views{order:3;width:100%}
+  .views button{flex:1;padding:.42rem .5rem}
+  .rankbar .suggest{width:100%}
+  .arch-head{flex-wrap:wrap}
+}
+@media (max-width:420px){
+  .views button{font-size:.82rem;padding:.4rem .3rem}
+  .suggest>span{width:100%}
+  .ranklist .note{padding-left:3.9rem}
+  .ranklist .note .rank{left:.45rem;width:1.4rem}
+  .ranklist .note .check{left:2.45rem}
+}
+/* touch screens: no hover, so keep controls visible and tap targets roomy */
+@media (hover:none){
+  .more{opacity:1}
+  .ibtn,.qadd,.addbtn,.icon-btn{min-width:2.5rem;min-height:2.5rem}
+}
+/* short windows: let the page scroll instead of squeezing the matrix */
+@media (max-height:640px) and (min-width:761px){
+  .matrix{min-height:0}
 }
 </style>
 </head>
