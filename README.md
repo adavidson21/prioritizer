@@ -51,10 +51,9 @@ Example: `Review promo doc @Brandon !3 ~s ^fri #eng`
 
 Slate (light) and Graphite (dark) follow your system setting by default. Ivory and Rosé are warm light themes. Pick one from the theme button at the bottom of the sidebar; the choice is saved per device.
 
-## Saving and syncing
+## Saving
 
-- Everything saves automatically in your browser, so it works offline.
-- **Sign in** (person icon, bottom of the sidebar) with any email and password to sync your board across devices. Changes from each device are merged, not overwritten. Sign-in is powered by Supabase (setup in `supabase-setup.sql`; project URL and publishable key live in `CLOUD` in `index.html`).
+- Everything saves automatically in your browser, so it works offline. Nothing leaves your device: there are no accounts and no server.
 - The folder icon can keep `prioritizer.xlsx` in a folder you choose (Chrome or Edge), and has Download a copy and Import a file. The Excel file has one sheet per list. Files from the previous version still import.
 
 ## Install it as a desktop app

@@ -1,9 +1,9 @@
 /* Prioritizer service worker: lets the app install as its own window and open offline.
    Bump CACHE when shipping a change so open windows get the "New version" toast. */
-const CACHE = 'prioritizer-2.0.0';
+const CACHE = 'prioritizer-2.1.0';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
-const SWR_HOSTS = ['cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+const SWR_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
@@ -26,7 +26,6 @@ self.addEventListener('fetch', e => {
   if (req.mode === 'navigate' || isShellPage) return e.respondWith(networkFirst(req));
   if (SWR_HOSTS.includes(url.hostname)) return e.respondWith(staleWhileRevalidate(req));
   if (url.origin === location.origin) return e.respondWith(caches.match(req).then(hit => hit || fetch(req)));
-  // everything else (Supabase sign-in and sync) goes straight to the network
 });
 
 async function networkFirst(req){

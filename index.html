@@ -14,7 +14,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" defer></script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -389,26 +388,11 @@ button.chip.warn:hover{color:var(--danger);background:color-mix(in srgb,var(--da
 @keyframes fade{from{opacity:0}to{opacity:1}}
 .rename{font:inherit;color:var(--ink);border:0;outline:2px solid var(--accent);background:var(--surface);border-radius:5px;padding:0 .3rem;min-width:3ch;width:100%}
 
-/* sync + account indicators: neutral unless something actually needs attention */
+/* folder save indicator: neutral unless something actually needs attention */
 #syncBtn .mk-ok,#syncBtn .mk-x{display:none}
 #syncBtn[data-sync=on] .mk-ok{display:inline}
 #syncBtn[data-sync=paused],#syncBtn[data-sync=error]{color:var(--danger)}
 #syncBtn[data-sync=paused] .mk-x,#syncBtn[data-sync=error] .mk-x{display:inline}
-#acctBtn .av{width:22px;height:22px;border-radius:50%;display:none;place-items:center;font-size:.62rem;font-weight:600;background:var(--accent-soft);color:var(--ink)}
-#acctBtn:not([data-cloud=out]) .av{display:grid}
-#acctBtn:not([data-cloud=out]) .ic{display:none}
-#acctBtn .dot{position:absolute;right:3px;bottom:3px;width:8px;height:8px;border-radius:50%;border:2px solid var(--side);display:none}
-#acctBtn[data-cloud=syncing] .dot{display:block;background:var(--muted);animation:pulse 1s ease-in-out infinite alternate}
-#acctBtn[data-cloud=offline] .dot{display:block;background:var(--muted)}
-#acctBtn[data-cloud=error] .dot{display:block;background:var(--danger)}
-@keyframes pulse{from{opacity:.35}to{opacity:1}}
-.auth input{margin-top:.6rem}
-.auth .err{color:var(--danger);font-size:.84rem;min-height:1.25em;margin:.55rem 0 0}
-.auth .ok{color:var(--ink)}
-.auth footer{margin-top:.6rem}
-.auth .alt{font-size:.86rem;color:var(--muted);margin:1rem 0 0;text-align:center}
-.auth .alt button,.auth .lnkbtn{color:var(--accent);font-weight:500;font-size:.86rem}
-.auth .alt button:hover,.auth .lnkbtn:hover{text-decoration:underline}
 
 /* ---------- breakpoints ---------- */
 @media (max-width:1099px){
@@ -462,10 +446,6 @@ button.chip.warn:hover{color:var(--danger);background:color-mix(in srgb,var(--da
     <div class="sfoot">
       <button class="ibtn" id="syncBtn" aria-label="Save to folder" data-sync="off">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M2.75 6.25a1.5 1.5 0 0 1 1.5-1.5h3.4l1.6 1.75h6.5a1.5 1.5 0 0 1 1.5 1.5v6.75a1.5 1.5 0 0 1-1.5 1.5H4.25a1.5 1.5 0 0 1-1.5-1.5z"/><path class="mk-ok" d="M7.25 11.25l2 2 3.5-3.75"/><path class="mk-x" d="M8.25 9.5l3.5 3.5M11.75 9.5l-3.5 3.5"/></svg>
-      </button>
-      <button class="ibtn" id="acctBtn" aria-label="Account" data-cloud="out" hidden>
-        <svg class="ic" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="7.2" r="3.2"/><path d="M3.8 16.5c1.1-2.9 3.5-4.4 6.2-4.4s5.1 1.5 6.2 4.4"/></svg>
-        <span class="av"></span><span class="dot"></span>
       </button>
       <span class="grow"></span>
       <button class="ibtn" id="helpBtn" aria-label="Keyboard shortcuts" data-tip="Keyboard shortcuts (?)">
@@ -716,7 +696,6 @@ function save(){
   try { localStorage.setItem(KEY, JSON.stringify(state)); }
   catch(e){ if (!saveWarned){ saveWarned = true; toast('Could not save in this browser. Use Download a copy to keep one.'); } }
   scheduleWrite();
-  schedulePush();
 }
 function commit(){ save(); render(); }
 
@@ -2298,273 +2277,6 @@ async function restoreSync(){
   toast(`Reconnect to ${h.name} to keep the folder copy`, 'Reconnect', reconnect, 20000);
 }
 
-/* ---------- accounts + cloud sync (Supabase) ---------- */
-// Fill these in from Supabase: Project Settings > API Keys. The publishable key is meant to be public;
-// row level security (see supabase-setup.sql) keeps every board private to its owner.
-const CLOUD = window.PRIORITIZER_CLOUD || {url: 'https://gmqnhtxukixhrqzreooi.supabase.co', key: 'sb_publishable_slkZ-uHcq1kOgamfTfexUg_KinHVvs1'};
-let sb = null, user = null;
-const cloud = {rev: 0, status: 'out', timer: null, busy: false, again: false, lastSync: 0, channel: null, poll: null};
-
-function stableStr(v){
-  if (Array.isArray(v)) return '[' + v.map(stableStr).join(',') + ']';
-  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + stableStr(v[k])).join(',') + '}';
-  return JSON.stringify(v ?? null);
-}
-function cloudPart(s){ return {lists: s.lists, tasks: s.tasks, people: s.people, colorIdx: s.colorIdx || 0, dead: s.dead, peopleAt: s.peopleAt, capacity: s.capacity, capacityAt: s.capacityAt || 0}; }
-// order-insensitive fingerprint, so two devices never ping-pong over array order
-function canon(d){
-  const byId = a => [...(a || [])].sort((x,y) => String(x.id).localeCompare(String(y.id)));
-  return stableStr({...d, lists: byId(d.lists), tasks: byId(d.tasks), people: [...(d.people || [])].map(p => p.toLowerCase()).sort()});
-}
-function mergeBoards(local, remote){
-  const dead = {tasks: {}, lists: {}, people: {}};
-  for (const src of [local.dead || {}, remote.dead || {}]) for (const k of ['tasks','lists','people'])
-    Object.entries(src[k] || {}).forEach(([id, ts]) => { if (!(dead[k][id] >= ts)) dead[k][id] = ts; });
-  const pick = (kind) => {
-    const m = new Map();
-    // remote first so equal stamps keep the remote copy; a newer local edit still wins
-    [...(remote[kind] || []), ...(local[kind] || [])].forEach(x => {
-      const cur = m.get(x.id);
-      if (!cur || (x.updatedAt || 0) > (cur.updatedAt || 0)) m.set(x.id, x);
-    });
-    return [...m.values()].filter(x => !(dead[kind][x.id] >= (x.updatedAt || 0)));
-  };
-  const peopleAt = {...(remote.peopleAt || {})};
-  Object.entries(local.peopleAt || {}).forEach(([k, ts]) => { if (!(peopleAt[k] >= ts)) peopleAt[k] = ts; });
-  const names = new Map();
-  [...(remote.people || []), ...(local.people || [])].forEach(n => { const k = n.toLowerCase(); if (!names.has(k)) names.set(k, n); });
-  const people = [...names.values()].filter(n => !(dead.people[n.toLowerCase()] >= (peopleAt[n.toLowerCase()] || 0)));
-  // capacity: newest edit wins (remote keeps ties, like items)
-  const cap = (local.capacityAt || 0) > (remote.capacityAt || 0) || remote.capacity == null ? local : remote;
-  return {lists: pick('lists'), tasks: pick('tasks'), people, colorIdx: Math.max(local.colorIdx || 0, remote.colorIdx || 0), dead, peopleAt,
-    capacity: cap.capacity ?? 20, capacityAt: cap.capacityAt || 0};
-}
-function adopt(data){
-  const keep = {view: state.view, lens: state.lens, scope: state.scope, owner: state.owner};
-  state = sanitize({version: 2, ...keep, ...JSON.parse(JSON.stringify(data))});
-  snap = takeSnap();
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
-  scheduleWrite();
-  render();
-}
-
-function setCloud(st){
-  cloud.status = st;
-  setSync(sync);
-  const b = $('#acctBtn'); if (!b) return;
-  b.dataset.cloud = user ? st : 'out';
-  b.querySelector('.av').textContent = user ? initials((user.email || '?').split('@')[0].replace(/[._-]+/g, ' ')) : '';
-  b.dataset.tip = !user ? 'Sign in to sync across your devices'
-    : st === 'on' ? `Synced as ${user.email}`
-    : st === 'syncing' ? 'Syncing'
-    : st === 'offline' ? "Offline. Changes will sync when you're back online."
-    : st === 'error' ? "Couldn't sync. Click to retry." : user.email;
-  if (tipFor === b) placeTip(b);
-}
-function schedulePush(){
-  if (!user) return;
-  clearTimeout(cloud.timer);
-  cloud.timer = setTimeout(syncNow, 1000);
-}
-async function pullRow(){
-  const {data, error} = await sb.from('boards').select('data, rev').eq('user_id', user.id).maybeSingle();
-  if (error) throw error;
-  return data;
-}
-// pull, merge, and write back only if something changed; the rev check stops two devices clobbering each other
-async function syncNow(){
-  if (!user || !sb) return;
-  if (cloud.busy){ cloud.again = true; return; }
-  cloud.busy = true; clearTimeout(cloud.timer);
-  if (cloud.status !== 'on') setCloud('syncing');
-  try {
-    for (let attempt = 0; attempt < 4; attempt++){
-      const row = await pullRow();
-      if (row && row.data){
-        const merged = mergeBoards(cloudPart(state), row.data);
-        if (canon(merged) !== canon(cloudPart(state))) adopt(merged);
-        cloud.rev = row.rev;
-        if (canon(cloudPart(state)) === canon(row.data)) break;
-        const {data: upd, error} = await sb.from('boards')
-          .update({data: cloudPart(state), rev: row.rev + 1, updated_at: new Date().toISOString()})
-          .eq('user_id', user.id).eq('rev', row.rev).select('rev');
-        if (error) throw error;
-        if (upd && upd.length){ cloud.rev = row.rev + 1; break; }
-        // another device saved in between: loop to merge its changes too
-      } else {
-        const {error} = await sb.from('boards').insert({user_id: user.id, data: cloudPart(state), rev: 1});
-        if (!error){ cloud.rev = 1; break; }
-        if (error.code !== '23505') throw error; // 23505: row appeared meanwhile, so merge with it
-      }
-    }
-    cloud.lastSync = Date.now();
-    setCloud('on');
-  } catch(e){
-    console.warn('sync failed', e);
-    setCloud(navigator.onLine === false ? 'offline' : 'error');
-  } finally {
-    cloud.busy = false;
-    if (cloud.again){ cloud.again = false; schedulePush(); }
-  }
-}
-function listen(){
-  stopListening();
-  try {
-    cloud.channel = sb.channel('board-' + user.id)
-      .on('postgres_changes', {event: '*', schema: 'public', table: 'boards', filter: `user_id=eq.${user.id}`},
-        p => { if (((p.new && p.new.rev) || 0) > cloud.rev) syncNow(); })
-      .subscribe();
-  } catch(e){}
-  cloud.poll = setInterval(() => { if (!document.hidden) syncNow(); }, 120000);
-}
-function stopListening(){
-  if (cloud.channel){ try { sb.removeChannel(cloud.channel); } catch(e){} cloud.channel = null; }
-  clearInterval(cloud.poll);
-}
-async function startSync(){
-  setCloud('syncing');
-  let row;
-  try { row = await pullRow(); }
-  catch(e){ setCloud(navigator.onLine === false ? 'offline' : 'error'); listen(); return; }
-  const go = mode => {
-    if (mode === 'account' && row) adopt(row.data);
-    state.owner = user.id;
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
-    listen(); syncNow();
-  };
-  if (!row || isBlank() || state.owner === user.id) return go(row && isBlank() ? 'account' : 'merge');
-  const other = state.owner && state.owner !== user.id;
-  showModal(`<div class="sheet small" role="dialog" aria-modal="true" aria-label="Sync choice"><h3>${other ? 'This browser has another board' : 'Bring this device along?'}</h3>
-    <p>${other ? 'The tasks here belong to a different account.' : `This device has ${plural(state.tasks.length, 'task')} that aren't in your account yet.`}</p>
-    <div class="choice">
-      <button class="opt" data-own="merge"><b>${other ? 'Combine anyway' : 'Combine them'}</b><span>Keep both, nothing is lost.</span></button>
-      <button class="opt" data-own="account"><b>Use my account's board</b><span>Replace what's on this device with your synced board.</span></button>
-    </div></div>`,
-    sh => sh.addEventListener('click', e => { const b = e.target.closest('[data-own]'); if (!b) return; closeModal(); go(b.dataset.own); }));
-}
-
-/* sign in / create account / reset password */
-function authModal(mode, email = ''){
-  const T = {
-    signin: ['Sign in', 'Sync your board across your laptop and phone.', 'Sign in'],
-    signup: ['Create an account', 'Use any email. You\'ll get a quick confirmation link.', 'Create account'],
-    forgot: ['Reset your password', 'We\'ll email you a link to set a new one.', 'Send link'],
-    reset:  ['Choose a new password', 'At least 8 characters.', 'Save password']
-  }[mode];
-  showModal(`<form class="sheet small auth" novalidate role="dialog" aria-modal="true" aria-label="${T[0]}">
-      <h3>${T[0]}</h3><p class="lede">${T[1]}</p>
-      ${mode !== 'reset' ? `<input type="email" name="email" placeholder="Email" autocomplete="email" value="${esc(email)}" required>` : ''}
-      ${mode !== 'forgot' ? `<input type="password" name="pw" placeholder="Password" autocomplete="${mode === 'signin' ? 'current-password' : 'new-password'}" minlength="8" required>` : ''}
-      <p class="err" role="alert"></p>
-      <footer>${mode === 'signin' ? '<button type="button" class="lnkbtn" data-auth="forgot">Forgot password?</button>' : ''}<span class="grow"></span>
-        <button type="button" class="btn" data-close>Cancel</button><button class="btn primary">${T[2]}</button></footer>
-      ${mode === 'signin' ? `<p class="alt">New here? <button type="button" data-auth="signup">Create an account</button></p>`
-        : mode === 'reset' ? '' : `<p class="alt">Have an account? <button type="button" data-auth="signin">Sign in</button></p>`}
-    </form>`, f => {
-      const em = f.querySelector('[name=email]'), pw = f.querySelector('[name=pw]'), err = f.querySelector('.err'), go = f.querySelector('.btn.primary');
-      (em && !em.value ? em : pw || em).focus();
-      const say = (m, ok) => { err.textContent = m; err.classList.toggle('ok', !!ok); };
-      f.addEventListener('click', e => { const a = e.target.closest('[data-auth]'); if (a) authModal(a.dataset.auth, em ? em.value.trim() : ''); });
-      f.addEventListener('submit', async e => {
-        e.preventDefault();
-        const email = em ? em.value.trim() : '', pass = pw ? pw.value : '';
-        if (em && !/^\S+@\S+\.\S+$/.test(email)) return say('Enter a valid email.');
-        if (pw && mode !== 'signin' && pass.length < 8) return say('Use at least 8 characters.');
-        if (pw && !pass) return say('Enter your password.');
-        go.disabled = true; say('');
-        const here = location.origin + location.pathname;
-        try {
-          if (mode === 'signin'){
-            const {error} = await sb.auth.signInWithPassword({email, password: pass});
-            if (error) throw error;
-            closeModal();
-          } else if (mode === 'signup'){
-            const {data, error} = await sb.auth.signUp({email, password: pass, options: {emailRedirectTo: here}});
-            if (error) throw error;
-            if (data.session) closeModal();
-            else { say(`Check ${email} for a confirmation link, then come back and sign in.`, true); go.disabled = false; }
-          } else if (mode === 'forgot'){
-            const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: here});
-            if (error) throw error;
-            say(`If ${email} has an account, a reset link is on its way.`, true);
-          } else {
-            const {error} = await sb.auth.updateUser({password: pass});
-            if (error) throw error;
-            closeModal(); toast('Password updated');
-          }
-        } catch(ex){
-          const m = String((ex && ex.message) || ex);
-          say(/invalid login/i.test(m) ? 'Email or password is incorrect.'
-            : /not confirmed/i.test(m) ? 'Confirm your email first. The link is in your inbox.'
-            : /already registered|already exists/i.test(m) ? 'That email already has an account. Try signing in.'
-            : /rate limit|too many/i.test(m) ? 'Too many tries. Wait a minute and try again.'
-            : /fetch|network/i.test(m) ? "Can't reach the server. Check your connection."
-            : m);
-          go.disabled = false;
-        }
-      });
-    });
-}
-function accountMenu(btn){
-  const ago = cloud.lastSync ? Math.round((Date.now() - cloud.lastSync) / 60000) : null;
-  const status = cloud.status === 'on' ? (ago === null ? 'Synced' : ago < 1 ? 'Synced just now' : `Synced ${ago} min ago`)
-    : cloud.status === 'syncing' ? 'Syncing' : cloud.status === 'offline' ? 'Offline, will sync later' : "Couldn't sync";
-  popMenu(`<div class="who"><b>${esc(user.email)}</b>${status}</div><button data-a="sync">Sync now</button><button data-a="pw">Change password</button><div class="sep"></div><button data-a="out" class="danger">Sign out</button>`, btn)
-    .addEventListener('click', e => {
-      const b = e.target.closest('[data-a]'); if (!b) return;
-      closeMenu();
-      if (b.dataset.a === 'sync') syncNow();
-      if (b.dataset.a === 'pw') authModal('reset');
-      if (b.dataset.a === 'out') signOut();
-    });
-}
-function signOut(){
-  showModal(`<div class="sheet small" role="dialog" aria-modal="true" aria-label="Sign out"><h3>Sign out?</h3><p>Your board stays safe in your account.</p>
-    <div class="choice">
-      <button class="opt" data-out="keep"><b>Keep a copy here</b><span>Good for your own laptop or phone.</span></button>
-      <button class="opt" data-out="clear"><b>Remove it from this device</b><span>Good for a shared computer.</span></button>
-    </div><footer><span class="grow"></span><button class="btn" data-close>Cancel</button></footer></div>`,
-    sh => sh.addEventListener('click', async e => {
-      const b = e.target.closest('[data-out]'); if (!b) return;
-      closeModal();
-      await syncNow();
-      stopListening();
-      try { await sb.auth.signOut(); } catch(e){}
-      if (b.dataset.out === 'clear'){ state = fresh(); snap = takeSnap(); try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} render(); }
-      toast('Signed out');
-    }));
-}
-function onAuth(ev, session){
-  const u = session && session.user;
-  if (ev === 'PASSWORD_RECOVERY' && u){ user = u; setCloud('syncing'); startSync(); authModal('reset'); return; }
-  if (u && (!user || user.id !== u.id)){
-    user = u; setCloud('syncing');
-    if (ev === 'SIGNED_IN') toast(`Signed in as ${u.email}`);
-    startSync();
-  } else if (!u && user){
-    user = null; stopListening(); setCloud('out');
-  } else setCloud(cloud.status);
-}
-function initCloud(){
-  if (!CLOUD.url || !CLOUD.key) return; // cloud not configured: app stays local-only
-  const b = $('#acctBtn'); b.hidden = false;
-  if (!window.supabase){ b.dataset.tip = "Sign-in couldn't load. Check your connection and reload."; return; }
-  sb = window.supabase.createClient(CLOUD.url, CLOUD.key);
-  setCloud('out');
-  sb.auth.onAuthStateChange((ev, session) => setTimeout(() => onAuth(ev, session), 0));
-}
-$('#acctBtn').addEventListener('click', e => {
-  e.stopPropagation();
-  const b = e.currentTarget;
-  if (!sb) return toast(b.dataset.tip || "Sign-in isn't available right now.");
-  if (!user) return authModal('signin');
-  if (cloud.status === 'error' || cloud.status === 'offline') return syncNow();
-  accountMenu(b);
-});
-window.addEventListener('online', () => syncNow());
-window.addEventListener('focus', () => { if (Date.now() - cloud.lastSync > 15000) syncNow(); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - cloud.lastSync > 15000) syncNow(); });
-
 /* ---------- installable desktop app ---------- */
 let swReloading = false;
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost','127.0.0.1','[::1]'].includes(location.hostname))){
@@ -2583,11 +2295,11 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localho
 }
 
 /* test hook: lets automated checks call the model without the UI */
-window.__prioritizer = {get state(){ return state; }, set state(s){ state = s; }, sanitize, migrateTask, urgency, score, tier, isStale, eKey, vKey, parseQuick, capacityCut, mergeBoards, cloudPart, buildWorkbook, parseWorkbook, doImport, render, commit, triageQueue, takeSnap, setSnap: s => { snap = s; }};
+window.__prioritizer = {get state(){ return state; }, set state(s){ state = s; }, sanitize, migrateTask, urgency, score, tier, isStale, eKey, vKey, parseQuick, capacityCut, buildWorkbook, parseWorkbook, doImport, render, commit, triageQueue, takeSnap, setSnap: s => { snap = s; }};
 
 applyTheme();
 applySide();
-// First load after the v2 upgrade: diff against the stored v1 board so migrated tasks get change stamps and sync.
+// First load after the v2 upgrade: diff against the stored v1 board so migrated tasks get change stamps.
 const bootRaw = (() => { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch(e){ return null; } })();
 if (bootRaw && bootRaw.version !== 2 && Array.isArray(bootRaw.tasks) && Array.isArray(bootRaw.lists)){
   snap = {tasks: new Map(bootRaw.tasks.map(t => [t.id, stripStamp(t)])), lists: new Map(bootRaw.lists.map(l => [l.id, stripStamp(l)])),
@@ -2596,7 +2308,6 @@ if (bootRaw && bootRaw.version !== 2 && Array.isArray(bootRaw.tasks) && Array.is
 } else snap = takeSnap();
 render();
 restoreSync();
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initCloud); else initCloud();
 })();
 </script>
 </body>
