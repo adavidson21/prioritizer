@@ -1,6 +1,6 @@
 /* Prioritizer service worker: lets the app install as its own window and open offline.
    Bump CACHE when shipping a change so open windows get the "New version" toast. */
-const CACHE = 'prioritizer-2.1.0';
+const CACHE = 'prioritizer-2.1.1';
 const SHELL = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
 const SWR_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];

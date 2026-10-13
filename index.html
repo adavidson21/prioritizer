@@ -7,7 +7,7 @@
 <script>
 /* set the theme before first paint so there's no flash */
 (function(){ var p = 'system'; try { p = localStorage.getItem('prioritizer.theme') || 'system'; } catch(e) {}
-  if (!/^(slate|graphite|ivory|rose)$/.test(p)) p = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'graphite' : 'slate';
+  if (!/^(slate|graphite|ivory|nord|dracula|solarized)$/.test(p)) p = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'graphite' : 'slate';
   document.documentElement.setAttribute('data-theme', p); })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,7 +26,9 @@
 :root[data-theme=slate]   {--bg:#F7F7F8;--surface:#FFFFFF;--ink:#1C1D21;--muted:#5C5F66;--accent:#4F46E5;--on-accent:#FFFFFF;--danger:#B42318;color-scheme:light}
 :root[data-theme=graphite]{--bg:#141518;--surface:#1C1E22;--ink:#E8E9EC;--muted:#A0A4AB;--accent:#8C88FF;--on-accent:#141518;--danger:#F97066;color-scheme:dark}
 :root[data-theme=ivory]   {--bg:#FBF8F1;--surface:#FFFDF8;--ink:#3A3230;--muted:#6B5F59;--accent:#9C5A6A;--on-accent:#FFFFFF;--danger:#B42318;color-scheme:light}
-:root[data-theme=rose]    {--bg:#FBF4F2;--surface:#FFFAF9;--ink:#3B2F33;--muted:#6F5D63;--accent:#A04F6C;--on-accent:#FFFFFF;--danger:#B42318;color-scheme:light}
+:root[data-theme=nord]    {--bg:#2E3440;--surface:#3B4252;--ink:#ECEFF4;--muted:#BCC4D2;--accent:#88C0D0;--on-accent:#2E3440;--danger:#F4B6BC;color-scheme:dark}
+:root[data-theme=dracula] {--bg:#282A36;--surface:#303241;--ink:#F8F8F2;--muted:#B0B6D3;--accent:#BD93F9;--on-accent:#282A36;--danger:#FF9494;color-scheme:dark}
+:root[data-theme=solarized]{--bg:#FDF6E3;--surface:#FFFCF4;--ink:#073642;--muted:#4F646B;--accent:#1F6FA8;--on-accent:#FFFFFF;--danger:#B42318;color-scheme:light}
 :root{
   --line:color-mix(in srgb,var(--ink) 12%,var(--surface));
   --hover:color-mix(in srgb,var(--ink) 5%,var(--surface));
@@ -62,8 +64,8 @@ main{flex:1;min-height:0;overflow:auto;padding:.25rem var(--gutter) 2.5rem}
 
 /* sidebar */
 .sbrand{display:flex;align-items:center;gap:.55rem;padding:.9rem .75rem .6rem 1rem;min-height:3.2rem}
-.logo{width:22px;height:22px;border-radius:6px;background:var(--accent);display:grid;place-items:center;flex:none}
-.logo i{display:block;width:12px;height:2px;border-radius:2px;background:var(--on-accent);box-shadow:0 4px 0 color-mix(in srgb,var(--on-accent) 75%,transparent),0 -4px 0 var(--on-accent)}
+.logo{width:22px;height:22px;flex:none;color:var(--accent)}
+.logo svg{width:100%;height:100%}
 .sbrand b{font-weight:600;font-size:1rem;letter-spacing:-.01em;white-space:nowrap}
 .sbrand .ibtn{margin-left:auto}
 .snav{padding:.2rem .5rem;display:flex;flex-direction:column;gap:1px}
@@ -435,7 +437,7 @@ button.chip.warn:hover{color:var(--danger);background:color-mix(in srgb,var(--da
 <div class="app" id="app">
   <aside class="side" id="side" aria-label="Sidebar">
     <div class="sbrand">
-      <span class="logo" aria-hidden="true"><i></i></span><b>Prioritizer</b>
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><rect width="24" height="24" rx="6.5" fill="currentColor"/><g fill="var(--on-accent)"><rect x="5" y="5" width="6.2" height="6.2" rx="1.8"/><path d="M6.6 8.3l1.2 1.1 2-2.2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/><rect x="12.8" y="5" width="6.2" height="6.2" rx="1.8" opacity=".38"/><rect x="5" y="12.8" width="6.2" height="6.2" rx="1.8" opacity=".38"/><rect x="12.8" y="12.8" width="6.2" height="6.2" rx="1.8" opacity=".38"/></g></svg></span><b>Prioritizer</b>
       <button class="ibtn collapse-btn" id="collapseBtn" aria-label="Collapse sidebar" data-tip="Collapse sidebar">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M8 4v12"/></svg>
       </button>
@@ -508,8 +510,8 @@ const VQ = {
 const VIEWS = ['today','triage','rank','eisen','ve','people','archive'];
 const LENSES = {rank: 'List', eisen: 'Eisenhower', ve: 'Value / Effort'};
 const NAV_OF = v => (v in LENSES) ? 'prio' : v;
-const THEMES = {system: 'System', slate: 'Slate', graphite: 'Graphite', ivory: 'Ivory', rose: 'Rosé'};
-const SWATCH = {slate: ['#F7F7F8','#4F46E5'], graphite: ['#141518','#8C88FF'], ivory: ['#FBF8F1','#9C5A6A'], rose: ['#FBF4F2','#A04F6C']};
+const THEMES = {system: 'System', slate: 'Slate', graphite: 'Graphite', ivory: 'Ivory', solarized: 'Solarized Light', nord: 'Nord', dracula: 'Dracula'};
+const SWATCH = {slate: ['#F7F7F8','#4F46E5'], graphite: ['#141518','#8C88FF'], ivory: ['#FBF8F1','#9C5A6A'], solarized: ['#FDF6E3','#1F6FA8'], nord: ['#2E3440','#88C0D0'], dracula: ['#282A36','#BD93F9']};
 const svg = (d, w = 1.5) => `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const ICON = {
   check: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.3 2.3 4.7-5"/></svg>',
