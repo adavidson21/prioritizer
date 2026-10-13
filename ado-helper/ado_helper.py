@@ -33,7 +33,7 @@ DEFAULTS = {
     'api_version': '6.0',
     'port': 4791,
     'types': ['Issue', 'Bug', 'User Story'],
-    'closed_states': ['Closed', 'Done'],  # counts as finished in the app
+    'closed_states': ['Resolved', 'Closed', 'Done'],  # counts as finished in the app
     'removed_states': ['Removed'],        # counts as won't do in the app
     'allowed_origins': ['https://prioritizer.alexisdavidson.org'],
     'verify_ssl': True,

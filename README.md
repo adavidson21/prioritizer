@@ -73,7 +73,7 @@ Your ADO Issues, Bugs and User Stories assigned to you show up as tasks in an **
 
 - New items become tasks in the ADO list. ADO Priority 1 to 4 sets a starting value (High to Trivial); effort is left for you in Triage. ADO's due or target date fills Due.
 - Title, state and due date follow ADO. Your notes, value, effort, rank, Today and people stay yours.
-- Closed or Done in ADO: completed here. Removed in ADO: marked won't do.
+- Resolved, Closed or Done in ADO: completed here. If it gets reactivated, it reopens. Removed in ADO: marked won't do.
 - Reassigned to someone else: marked won't do with a note saying who and when, so it's in the Archive. If it comes back to you, it reopens.
 - Deleting an ADO task here keeps it from coming back.
 
