@@ -172,6 +172,20 @@ main{flex:1;min-height:0;overflow:auto;padding:.25rem var(--gutter) 2.5rem}
 .chip.acc{background:var(--accent-soft);color:var(--ink)}
 button.chip:hover{color:var(--ink);background:var(--line)}
 button.chip.warn:hover{color:var(--danger);background:color-mix(in srgb,var(--danger) 18%,var(--surface))}
+.chip.ado{font-family:var(--mono);font-size:.7rem}
+.dado{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.3rem 0 .1rem;font-size:.82rem;color:var(--muted)}
+.dado a{color:var(--accent);font-weight:500;text-decoration:none;border-radius:6px;padding:.1rem .3rem;margin-left:-.3rem}
+.dado a:hover{background:var(--accent-soft);color:var(--ink)}
+#adoBtn .mk-x{display:none}
+#adoBtn[data-ado=error]{color:var(--danger)}
+#adoBtn[data-ado=error] .mk-x{display:inline}
+#adoBtn[data-ado=busy] svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.steps{margin:.4rem 0 .2rem;padding-left:1.2rem;font-size:.88rem;color:var(--muted)}
+.steps li{margin:.3rem 0}
+.steps code{font-family:var(--mono);font-size:.8rem;color:var(--ink);background:var(--hover);padding:0 .25rem;border-radius:4px}
+.sheet .fld{display:flex;align-items:center;gap:.5rem;margin-top:.6rem;font-size:.86rem}
+.sheet .fld input[type=number]{width:6rem}
 .row.compact{min-height:2.1rem}
 .row.compact .title{font-size:.9rem}
 
@@ -450,6 +464,9 @@ button.chip.warn:hover{color:var(--danger);background:color-mix(in srgb,var(--da
       <button class="ibtn" id="syncBtn" aria-label="Save to folder" data-sync="off">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M2.75 6.25a1.5 1.5 0 0 1 1.5-1.5h3.4l1.6 1.75h6.5a1.5 1.5 0 0 1 1.5 1.5v6.75a1.5 1.5 0 0 1-1.5 1.5H4.25a1.5 1.5 0 0 1-1.5-1.5z"/><path class="mk-ok" d="M7.25 11.25l2 2 3.5-3.75"/><path class="mk-x" d="M8.25 9.5l3.5 3.5M11.75 9.5l-3.5 3.5"/></svg>
       </button>
+      <button class="ibtn" id="adoBtn" aria-label="Azure DevOps sync" data-ado="off">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 9.5A6 6 0 0 0 5.2 6.2M4 10.5a6 6 0 0 0 10.8 3.3"/><path d="M16.3 4.8v4.7h-4.6M3.7 15.2v-4.7h4.6"/><path class="mk-x" d="M8.6 8.6l2.8 2.8M11.4 8.6l-2.8 2.8"/></svg>
+      </button>
       <span class="grow"></span>
       <button class="ibtn" id="helpBtn" aria-label="Keyboard shortcuts" data-tip="Keyboard shortcuts (?)">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2.5" y="5" width="15" height="10" rx="2"/><path d="M6 8.5h.01M9 8.5h.01M12 8.5h.01M15 8.5h.01M7 12h6"/></svg>
@@ -600,7 +617,7 @@ function byScore(a, b){
 /* ---------- state ---------- */
 function fresh(){
   const main = {id: uid(), name: 'Main', parentId: null};
-  return {version: 2, lists: [main], scope: 'all', view: 'today', lens: 'rank', colorIdx: 0, tasks: [], people: [], capacity: 20, capacityAt: 0};
+  return {version: 2, lists: [main], scope: 'all', view: 'today', lens: 'rank', colorIdx: 0, tasks: [], people: [], capacity: 20, capacityAt: 0, ado: {skip: []}};
 }
 function normalizeRanks(s){
   s.tasks.sort((a,b) => (a.rank ?? 0) - (b.rank ?? 0)).forEach((t,i) => t.rank = i + 1);
@@ -623,7 +640,20 @@ function migrateTask(t){
   t.done = t.done === true;
   if (!t.done) t.doneAt = null;
   t.wontDo = t.wontDo === true && t.done;
+  t.ado = cleanAdo(t.ado);
+  if (!t.ado) delete t.ado;
   delete t.urgent; delete t.important;
+}
+// ADO link on a task: {id, type, state, url, project, due, gone}. Anything malformed is dropped.
+function cleanAdo(a){
+  if (!a || typeof a !== 'object') return null;
+  const id = parseInt(a.id, 10);
+  if (!(id > 0)) return null;
+  const str = v => typeof v === 'string' ? v.slice(0, 500) : '';
+  const o = {id, type: str(a.type), state: str(a.state), url: /^https?:\/\//.test(a.url) ? str(a.url) : '', project: str(a.project)};
+  if (isDate(a.due)) o.due = a.due;
+  if (['closed','removed','reassigned','missing','filtered'].includes(a.gone)) o.gone = a.gone;
+  return o;
 }
 function sanitize(s){
   if (!s || !Array.isArray(s.lists) || !s.lists.length) return fresh();
@@ -663,6 +693,9 @@ function sanitize(s){
   s.tasks = s.tasks.filter(t => ids.has(t.listId));
   if (s.scope !== 'all' && !ids.has(s.scope)) s.scope = 'all';
   delete s.includeSub; delete s.activeListId;
+  s.ado = s.ado && typeof s.ado === 'object' ? s.ado : {};
+  if (s.ado.listId && !ids.has(s.ado.listId)) delete s.ado.listId;
+  s.ado.skip = Array.isArray(s.ado.skip) ? s.ado.skip.filter(n => Number.isInteger(n)).slice(-500) : [];
   normalizeRanks(s);
   return s;
 }
@@ -822,9 +855,12 @@ function toggleFocus(id){
 function deleteTask(id){
   const i = state.tasks.findIndex(t => t.id === id); if (i < 0) return;
   const [t] = state.tasks.splice(i, 1);
+  if (t.ado) state.ado.skip.push(t.ado.id);
   if (drawerId === id) closeDrawer(true);
   commit();
-  toast('Task deleted', 'Undo', () => { state.tasks.push(t); normalizeRanks(state); commit(); });
+  toast(t.ado ? 'Task deleted. It won\'t come back from ADO.' : 'Task deleted', 'Undo', () => {
+    state.tasks.push(t); if (t.ado) state.ado.skip = state.ado.skip.filter(n => n !== t.ado.id); normalizeRanks(state); commit();
+  });
 }
 // Reassign the existing rank slots of these tasks in the given order (hidden tasks keep their place).
 function applyOrder(ids){
@@ -960,6 +996,7 @@ function row(t, o = {}){
   const tr = t.done ? null : tier(t);
   const s = score(t);
   let meta = '';
+  if (t.ado) meta += `<span class="chip ado" data-tip="ADO ${esc(t.ado.type)} #${t.ado.id}, ${esc(t.ado.state)}">${esc(adoShort(t.ado.type))} ${t.ado.id}</span>`;
   if (!t.done){
     if (nudgeDue(t)) meta += `<span class="chip warn" data-tip="Follow-up date ${fmtLong(t.nudgeOn)}">Nudge</span>`;
     else if (t.waiting) meta += `<span class="chip">Waiting</span>`;
@@ -1326,6 +1363,7 @@ function renderDrawer(){
       <button class="ibtn" data-d="close" data-fk="close" aria-label="Close details" data-tip="Close (Esc)">${ICON.x}</button></div>
     <div class="dbody">
       <textarea class="d-title" rows="1" data-f="title" data-fk="title" aria-label="Task">${esc(t.title)}</textarea>
+      ${t.ado ? `<div class="dado"><a href="${esc(t.ado.url)}" target="_blank" rel="noopener" data-fk="adolink">Open ${esc(t.ado.type || 'item')} #${t.ado.id} in ADO</a><span>${esc(t.ado.state)}${t.ado.project ? ' · ' + esc(t.ado.project) : ''}</span>${t.ado.gone ? `<span class="chip">${ADO_GONE[t.ado.gone]}</span>` : ''}</div>` : ''}
       <textarea class="d-notes" rows="3" data-f="notes" data-fk="notes" placeholder="Notes" aria-label="Notes">${esc(t.notes)}</textarea>
       <div class="dfld"><span class="lbl">Value</span><div class="seg">${[1,2,3,4].map(v => `<button data-dv="${v}" data-fk="v${v}" aria-pressed="${t.value === v}"${t.value === v ? ' class="on"' : ''}>${VALUE[v]}</button>`).join('')}</div></div>
       <div class="dfld"><span class="lbl">Effort</span><div class="seg">${EFFORTS.map(e => `<button data-de="${e}" data-fk="e${e}" aria-pressed="${t.effort === e}"${t.effort === e ? ' class="on"' : ''}>${e}<span class="pts">${POINTS[e]}</span></button>`).join('')}</div></div>
@@ -1626,7 +1664,7 @@ cmdInput.addEventListener('keydown', e => {
 cmd.addEventListener('click', e => { if (e.target.closest('[data-cmd-close]')) closeCmd(); });
 
 /* ---------- excel export / import ---------- */
-const HEADERS = ['Rank','Task','Notes','Status','Completed On','Value','Effort','Due','Urgent','Score','Focus On','Waiting','Nudge On','People','Age From','Created','ID'];
+const HEADERS = ['Rank','Task','Notes','Status','Completed On','Value','Effort','Due','Urgent','Score','Focus On','Waiting','Nudge On','People','Age From','Created','ID','ADO ID','ADO Type','ADO State','ADO Link'];
 const NO_XLSX = 'Excel tools did not load. Check your internet connection and reload.';
 function exportXlsx(){
   if (!window.XLSX){ toast(NO_XLSX); return; }
@@ -1652,10 +1690,11 @@ function buildWorkbook(){
       'Value': t.value ? VALUE[t.value] : '', 'Effort': t.effort || '', 'Due': t.due || '', 'Urgent': t.urgentFlag ? 'Yes' : '',
       'Score': score(t) == null ? '' : Math.round(score(t) * 10) / 10,
       'Focus On': t.focusOn || '', 'Waiting': t.waiting ? 'Yes' : '', 'Nudge On': t.nudgeOn || '', 'People': t.people.join(', '),
-      'Age From': t.ageFrom || '', 'Created': t.createdAt || '', 'ID': t.id
+      'Age From': t.ageFrom || '', 'Created': t.createdAt || '', 'ID': t.id,
+      'ADO ID': t.ado ? t.ado.id : '', 'ADO Type': t.ado ? t.ado.type : '', 'ADO State': t.ado ? t.ado.state : '', 'ADO Link': t.ado ? t.ado.url : ''
     }));
     const ws = XLSX.utils.json_to_sheet(rows, {header: HEADERS});
-    ws['!cols'] = [6,40,40,9,13,9,7,11,8,7,11,8,11,20,11,11,12].map(w => ({wch: w}));
+    ws['!cols'] = [6,40,40,9,13,9,7,11,8,7,11,8,11,20,11,11,12,8,10,10,30].map(w => ({wch: w}));
     XLSX.utils.book_append_sheet(wb, ws, sheetOf.get(l.id));
   });
   const meta = XLSX.utils.json_to_sheet(ordered.map(l => ({
@@ -1751,7 +1790,8 @@ function parseWorkbook(wb){
         doneAt: done ? (toDate(g('completed on')) || todayStr()) : null,
         focusOn: toDate(g('focus on')), waiting: yn(g('waiting')) === true, nudgeOn: toDate(g('nudge on')),
         people: String(g('people')).split(',').map(x => x.trim()).filter(Boolean),
-        createdAt: toDate(g('created')) || todayStr(), ageFrom: toDate(g('age from'))
+        createdAt: toDate(g('created')) || todayStr(), ageFrom: toDate(g('age from')),
+        ado: g('ado id') !== '' ? {id: g('ado id'), type: String(g('ado type')), state: String(g('ado state')), url: String(g('ado link'))} : null
       }});
     });
     parsed.sort((a,b) => (a.t.done - b.t.done) || (a.rk - b.rk) || (a.i - b.i)).forEach(p => { p.t.rank = ++rank; tasks.push(p.t); });
@@ -1979,6 +2019,7 @@ document.addEventListener('click', e => {
   if (t.closest('#dscrim')){ closeDrawer(); return; }
   if (t.closest('#addList')){ askText('New list', '', name => { const n = {id: uid(), name, parentId: null}; state.lists.push(n); state.scope = n.id; commit(); }, 'Create'); return; }
   if (t.closest('#syncBtn')){ onSyncClick(t.closest('#syncBtn')); return; }
+  if (t.closest('#adoBtn')){ onAdoClick(t.closest('#adoBtn')); return; }
   if (t.closest('#themeBtn')){ openThemeMenu(t.closest('#themeBtn')); return; }
   if (t.closest('#helpBtn')){ showHelp(); return; }
   if (t.closest('[data-add]')){ openCmd(); return; }
@@ -2280,6 +2321,156 @@ async function restoreSync(){
   toast(`Reconnect to ${h.name} to keep the folder copy`, 'Reconnect', reconnect, 20000);
 }
 
+/* ---------- Azure DevOps: work items from the local helper (ado-helper/ado_helper.py) ---------- */
+const ADO_DEFAULT_PORT = 4791, ADO_EVERY = 10 * 60 * 1000, ADO_MIN_GAP = 2 * 60 * 1000;
+const ADO_GONE = {closed: 'Closed in ADO', removed: 'Removed in ADO', reassigned: 'Reassigned in ADO', missing: 'Not found in ADO', filtered: 'No longer matches ADO filter'};
+const ADO_VALUE = {1: 4, 2: 3, 3: 2, 4: 1};   // ADO priority 1 (highest) to 4, as a starting value
+const adoShort = type => ({'User Story': 'Story', 'Product Backlog Item': 'PBI'})[type] || type || 'ADO';
+ui.ado = Object.assign({on: false, port: ADO_DEFAULT_PORT, last: 0, error: ''}, ui.ado || {});
+let adoBusy = false, adoTimer = null;
+
+function adoList(){
+  let L = state.ado.listId && listById(state.ado.listId);
+  if (!L) L = topLists().find(l => l.name.toLowerCase() === 'ado');
+  if (!L){ L = {id: uid(), name: 'ADO', parentId: null}; state.lists.push(L); }
+  state.ado.listId = L.id;
+  return L;
+}
+function adoNote(t, line){ t.notes = (t.notes ? t.notes + '\n' : '') + line; }
+
+// Pure merge of a helper response into state; returns counts. Exposed on the test hook.
+function adoApply(res){
+  const n = {added: 0, updated: 0, closed: 0, removed: 0, reopened: 0};
+  const byId = new Map(state.tasks.filter(t => t.ado).map(t => [t.ado.id, t]));
+  const skip = new Set(state.ado.skip);
+  let maxRank = state.tasks.reduce((m, t) => Math.max(m, t.rank), 0);
+  for (const it of res.items || []){
+    const t = byId.get(it.id);
+    const link = {id: it.id, type: it.type, state: it.state, url: it.url, project: it.project, due: isDate(it.due) ? it.due : undefined};
+    if (!t){
+      if (skip.has(it.id)) continue;
+      const nt = {id: uid(), title: it.title || `ADO #${it.id}`, notes: '', color: COLORS[state.colorIdx++ % COLORS.length], rank: ++maxRank,
+        value: ADO_VALUE[it.priority] || null, effort: null, due: link.due || null, urgentFlag: false, listId: adoList().id,
+        done: false, doneAt: null, wontDo: false, createdAt: todayStr(), ageFrom: todayStr(), waiting: false, nudgeOn: null, focusOn: null, people: []};
+      nt.ado = cleanAdo(link);
+      state.tasks.push(nt); n.added++;
+      continue;
+    }
+    const before = JSON.stringify([t.title, t.ado, t.due, t.done]);
+    if (t.done && t.ado.gone){                       // was closed or reassigned by a sync, now open and yours again
+      t.done = false; t.wontDo = false; t.doneAt = null;
+      adoNote(t, `Back in ADO as ${it.state || 'open'} on ${fmtLong(todayStr())}.`); n.reopened++;
+    }
+    if (it.title) t.title = it.title;
+    if (t.due === (t.ado.due || null) && link.due) t.due = link.due;   // follow ADO's date unless you changed it here
+    t.ado = cleanAdo(link);
+    if (before !== JSON.stringify([t.title, t.ado, t.due, t.done])) n.updated++;
+  }
+  for (const g of res.gone || []){
+    const t = byId.get(g.id); if (!t) continue;
+    if (g.state) t.ado.state = g.state;
+    if (t.done){ t.ado.gone = t.ado.gone || g.reason; continue; }
+    t.ado.gone = g.reason;
+    t.done = true; t.doneAt = todayStr();
+    if (g.reason === 'closed'){ n.closed++; }
+    else {
+      t.wontDo = true; n.removed++;
+      adoNote(t, g.reason === 'reassigned' ? `Reassigned in ADO${g.assignedTo ? ' to ' + g.assignedTo : ''} on ${fmtLong(todayStr())}.`
+        : `${ADO_GONE[g.reason] || 'Dropped from ADO'} on ${fmtLong(todayStr())}.`);
+    }
+  }
+  return n;
+}
+
+async function adoFetch(path, body){
+  const r = await fetch(`http://127.0.0.1:${ui.ado.port}${path}`, {
+    method: body ? 'POST' : 'GET', cache: 'no-store', targetAddressSpace: 'loopback',
+    headers: body ? {'Content-Type': 'application/json'} : undefined, body: body ? JSON.stringify(body) : undefined
+  });
+  let data = null; try { data = await r.json(); } catch(e) {}
+  if (!r.ok) throw new Error((data && data.error) || `Helper answered HTTP ${r.status}`);
+  return data;
+}
+const adoUnreachable = e => e instanceof TypeError || /fetch/i.test(e.message);
+const ADO_DOWN = "Can't reach the ADO helper. Is it running on this computer?";
+
+async function adoSync(manual){
+  if (adoBusy || !ui.ado.on) return;
+  if (!manual && Date.now() - ui.ado.last < ADO_MIN_GAP) return;
+  adoBusy = true; setAdo();
+  try {
+    const known = state.tasks.filter(t => t.ado && !t.done).map(t => t.ado.id);
+    const res = await adoFetch('/sync', {known});
+    flushText();
+    const n = adoApply(res);
+    ui.ado.last = Date.now(); ui.ado.error = ''; saveUi();
+    const changed = n.added + n.updated + n.closed + n.removed + n.reopened;
+    if (changed){ normalizeRanks(state); commit(); }
+    const bits = [n.added && `${n.added} new`, n.closed && `${n.closed} closed`, n.removed && `${n.removed} reassigned or removed`, n.reopened && `${n.reopened} reopened`].filter(Boolean);
+    if (bits.length) toast(`ADO: ${bits.join(', ')}`, n.added ? 'Show' : null, () => setScope(state.ado.listId));
+    else if (manual) toast(`ADO is up to date. ${plural((res.items || []).length, 'open item')}.`);
+  } catch(e){
+    ui.ado.error = adoUnreachable(e) ? ADO_DOWN : e.message; saveUi();
+    if (manual) toast(ui.ado.error);
+  } finally { adoBusy = false; setAdo(); }
+}
+function adoSchedule(){
+  clearInterval(adoTimer); adoTimer = null;
+  if (ui.ado.on){ adoTimer = setInterval(() => { if (!document.hidden) adoSync(false); }, ADO_EVERY); }
+}
+function setAdo(){
+  const b = $('#adoBtn'); if (!b) return;
+  const ago = ui.ado.last ? Math.round((Date.now() - ui.ado.last) / 60000) : null;
+  b.dataset.ado = adoBusy ? 'busy' : !ui.ado.on ? 'off' : ui.ado.error ? 'error' : 'on';
+  b.dataset.tip = !ui.ado.on ? 'Connect Azure DevOps' : adoBusy ? 'Syncing with ADO' : ui.ado.error ? `ADO: ${ui.ado.error}`
+    : ago == null ? 'ADO sync on' : `ADO synced ${ago < 1 ? 'just now' : plural(ago, 'minute') + ' ago'}`;
+  if (tipFor === b) placeTip(b);
+}
+function adoSetup(){
+  showModal(`<div class="sheet" role="dialog" aria-modal="true" aria-label="Connect Azure DevOps"><h3>Connect Azure DevOps</h3>
+    <p>Your Issues, Bugs and User Stories show up as tasks in an <b>ADO</b> list. A small helper on this computer talks to ADO with your PAT, so the PAT never touches this page or leaves your computer.</p>
+    <ol class="steps">
+      <li>Download <a class="lnk" href="ado-helper/ado_helper.py" download>ado_helper.py</a> to a folder you keep, like Documents.</li>
+      <li>In that folder, run <code>py ado_helper.py</code>. The first time, it asks for your ADO collection URL and the name of the environment variable holding your PAT.</li>
+      <li>Leave it running, or run <code>py ado_helper.py --startup</code> once so it starts when you log in.</li>
+      <li>Click Connect. If the browser asks to allow access to apps on this device, choose Allow.</li>
+    </ol>
+    <div class="fld"><label for="adoPort">Helper port</label><input type="number" id="adoPort" class="mono" min="1024" max="65535" value="${ui.ado.port}"></div>
+    <p class="hint" id="adoMsg" aria-live="polite" style="margin-top:.6rem">${ui.ado.on && ui.ado.error ? esc(ui.ado.error) : ''}</p>
+    <footer>${ui.ado.on ? '<button class="btn text-danger" data-ado-off>Disconnect</button>' : ''}<span class="grow"></span><button class="btn" data-close>Cancel</button><button class="btn primary" data-ado-go>Connect</button></footer></div>`,
+    sh => sh.addEventListener('click', async e => {
+      if (e.target.closest('[data-ado-off]')){ ui.ado.on = false; ui.ado.error = ''; saveUi(); adoSchedule(); setAdo(); closeModal(); toast('ADO disconnected. Synced tasks stay in your board.'); return; }
+      const go = e.target.closest('[data-ado-go]'); if (!go) return;
+      const port = Math.round(+sh.querySelector('#adoPort').value), msg = sh.querySelector('#adoMsg');
+      if (!(port >= 1024 && port <= 65535)){ msg.textContent = 'Use a port between 1024 and 65535.'; return; }
+      ui.ado.port = port; go.disabled = true; msg.textContent = 'Checking the helper...';
+      try {
+        await adoFetch('/health');
+        ui.ado.on = true; ui.ado.error = ''; ui.ado.last = 0; saveUi();
+        closeModal(); adoSchedule(); adoSync(true);
+      } catch(err){
+        msg.textContent = adoUnreachable(err) ? `${ADO_DOWN} Expected it at 127.0.0.1:${port}.` : err.message;
+        go.disabled = false;
+      }
+    }));
+}
+function onAdoClick(btn){
+  hideTip();
+  if (!ui.ado.on) return adoSetup();
+  const ago = ui.ado.last ? fmtMD(new Date(ui.ado.last)) + ' ' + new Date(ui.ado.last).toLocaleTimeString(undefined, {hour: 'numeric', minute: '2-digit'}) : 'never';
+  popMenu(`<div class="who"><b>Azure DevOps</b>${ui.ado.error ? esc(ui.ado.error) : `Last sync ${esc(ago)}`}</div>
+    <button data-a="now">Sync now</button><button data-a="show">Show ADO list</button><button data-a="setup">Settings</button>`, btn)
+    .addEventListener('click', e => {
+      const b = e.target.closest('[data-a]'); if (!b) return;
+      closeMenu();
+      if (b.dataset.a === 'now') adoSync(true);
+      if (b.dataset.a === 'show'){ adoList(); setScope(state.ado.listId); }
+      if (b.dataset.a === 'setup') adoSetup();
+    });
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) adoSync(false); });
+window.addEventListener('focus', () => adoSync(false));
+
 /* ---------- installable desktop app ---------- */
 let swReloading = false;
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost','127.0.0.1','[::1]'].includes(location.hostname))){
@@ -2298,7 +2489,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localho
 }
 
 /* test hook: lets automated checks call the model without the UI */
-window.__prioritizer = {get state(){ return state; }, set state(s){ state = s; }, sanitize, migrateTask, urgency, score, tier, isStale, eKey, vKey, parseQuick, capacityCut, buildWorkbook, parseWorkbook, doImport, render, commit, triageQueue, takeSnap, setSnap: s => { snap = s; }};
+window.__prioritizer = {get state(){ return state; }, set state(s){ state = s; }, adoApply, adoSync, ui, sanitize, migrateTask, urgency, score, tier, isStale, eKey, vKey, parseQuick, capacityCut, buildWorkbook, parseWorkbook, doImport, render, commit, triageQueue, takeSnap, setSnap: s => { snap = s; }};
 
 applyTheme();
 applySide();
@@ -2311,6 +2502,7 @@ if (bootRaw && bootRaw.version !== 2 && Array.isArray(bootRaw.tasks) && Array.is
 } else snap = takeSnap();
 render();
 restoreSync();
+setAdo(); adoSchedule(); adoSync(false);
 })();
 </script>
 </body>
