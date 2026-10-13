@@ -49,7 +49,7 @@ Example: `Review promo doc @Brandon !3 ~s ^fri #eng`
 
 ## Themes
 
-Slate (light) and Graphite (dark) follow your system setting by default. Ivory and Rosé are warm light themes. Pick one from the theme button at the bottom of the sidebar; the choice is saved per device.
+Slate (light) and Graphite (dark) follow your system setting by default. Also available: Ivory (warm light), Solarized Light, Nord and Dracula, all tuned so text meets WCAG AA contrast. Pick one from the theme button at the bottom of the sidebar; the choice is saved per device.
 
 ## Saving and syncing
 
