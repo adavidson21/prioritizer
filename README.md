@@ -56,6 +56,29 @@ Slate (light) and Graphite (dark) follow your system setting by default. Also av
 - Everything saves automatically in your browser, so it works offline. Nothing leaves your device: there are no accounts and no server.
 - The folder icon can keep `prioritizer.xlsx` in a folder you choose (Chrome or Edge), and has Download a copy and Import a file. The Excel file has one sheet per list. Files from the previous version still import.
 
+## Azure DevOps work items
+
+Your ADO Issues, Bugs and User Stories assigned to you show up as tasks in an **ADO** list, and in All lists next to everything else. Read-only for now.
+
+**How it connects:** a small helper (`ado-helper/ado_helper.py`, Python standard library only) runs on your computer. It reads your PAT from an environment variable and calls your ADO server. The app talks only to the helper at `127.0.0.1`, so the PAT never touches the page or leaves your computer. The helper only answers this site and only on this computer.
+
+**Setup on the work PC:**
+
+1. Download `ado_helper.py` from the ADO button in the sidebar (or from this repo) into a folder you keep.
+2. Run `py ado_helper.py`. The first run asks for your collection URL (for example `https://tfs.yourcompany.com/DefaultCollection`) and the name of your PAT environment variable. Settings save to `ado-helper.json` next to the script.
+3. Optional: `py ado_helper.py --test` checks the connection and lists what it finds. `py ado_helper.py --startup` starts it hidden at login (`--no-startup` undoes it).
+4. In the app, click the ADO button (sync arrows, bottom of the sidebar) and Connect. If the browser asks to allow access to apps on this device, choose Allow.
+
+**What syncing does** (every 10 minutes while the app is open, when you switch back to it, or with Sync now):
+
+- New items become tasks in the ADO list. ADO Priority 1 to 4 sets a starting value (High to Trivial); effort is left for you in Triage. ADO's due or target date fills Due.
+- Title, state and due date follow ADO. Your notes, value, effort, rank, Today and people stay yours.
+- Closed or Done in ADO: completed here. Removed in ADO: marked won't do.
+- Reassigned to someone else: marked won't do with a note saying who and when, so it's in the Archive. If it comes back to you, it reopens.
+- Deleting an ADO task here keeps it from coming back.
+
+Work item types and which states count as closed are in `ado-helper.json` (`types`, `closed_states`, `removed_states`). A PAT with Work Items (Read) is enough.
+
 ## Install it as a desktop app
 
 On the hosted GitHub Pages link in Chrome or Edge, use the Install button in the address bar. It opens in its own window with a dock or taskbar icon and works offline. It installs per user from the browser, with no admin rights or executable. If Install never appears on a work laptop, your company's browser policy may block web app installs.
