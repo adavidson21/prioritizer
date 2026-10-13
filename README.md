@@ -25,6 +25,7 @@ Your manual rank always has the final say. **Suggest order** previews a score-ba
 - **Prioritize:** List (stack rank with a weekly capacity line), Eisenhower, and Value / Effort. Dragging into a quadrant sets the fields it needs.
 - **People:** one card per person, split into "Waiting on them" and "To discuss or do". Handy as a 1:1 agenda.
 - **Archive:** a weekly recap you can copy into a status update, with how your work split across quadrants, plus finished and won't-do tasks.
+- **Dashboard:** your eng-agents live dashboard, inside Prioritizer. See below.
 
 The **Scope** in the sidebar (All lists, a list, or a section) filters every view.
 
@@ -45,11 +46,13 @@ Example: `Review promo doc @Brandon !3 ~s ^fri #eng`
 
 ## Keyboard
 
-`1` to `5` switch views, `J`/`K` move through tasks, `Enter` opens details, `X` completes, `T` toggles Today, `Alt+Up`/`Alt+Down` reorder, `Esc` closes. In Triage: `1` to `4` value, `Q W E R T` effort, `D` due, `U` urgent, `Space` Today, `Enter` save and next, `S` skip, `0` won't do. Press `?` for the full list.
+`1` to `6` switch views, `J`/`K` move through tasks, `Enter` opens details, `X` completes, `T` toggles Today, `Alt+Up`/`Alt+Down` reorder, `Esc` closes. In Triage: `1` to `4` value, `Q W E R T` effort, `D` due, `U` urgent, `Space` Today, `Enter` save and next, `S` skip, `0` won't do. Press `?` for the full list.
 
 ## Themes
 
-Slate (light) and Graphite (dark) follow your system setting by default. Also available: Ivory (warm light), Solarized Light, Nord and Dracula, all tuned so text meets WCAG AA contrast. Pick one from the theme button at the bottom of the sidebar; the choice is saved per device.
+Slate (light) and Graphite (dark) follow your system setting by default. Also available: Ivory (warm light), Rosé, Solarized Light, Nord and Dracula, all tuned so text meets WCAG AA contrast. Pick one from the theme button at the bottom of the sidebar; the choice is saved per device.
+
+The themes live in `themes.css`, which is the styling source of truth for the eng-agents dashboard too. Change themes only there. The dashboard copies it with `node core/scripts/dashboard/sync-themes.mjs` in eng-agents, and its `--check` fails when the copy drifts.
 
 ## Saving
 
@@ -79,6 +82,27 @@ Your ADO Issues, Bugs and User Stories assigned to you show up as tasks in an **
 
 Work item types and which states count as closed are in `ado-helper.json` (`types`, `closed_states`, `removed_states`). A PAT with Work Items (Read) is enough.
 
+## eng-agents dashboard
+
+The **Dashboard** view shows your [eng-agents](https://github.com/adavidson21/eng-agents) live dashboard right here, in Prioritizer's theme. Nothing about your work is hosted anywhere: the dashboard runs on your computer at `127.0.0.1`, and this page talks to it only after you open Dashboard the first time.
+
+**Setup on the work PC (once):**
+
+1. In `~/.config/eng-agents/config.json` (`%USERPROFILE%\.config\eng-agents\config.json` on Windows), add this site:
+   ```json
+   "dashboard": { "shellOrigins": ["https://prioritizer.alexisdavidson.org"] }
+   ```
+2. Start the live dashboard as usual (`Start-LiveDashboard.ps1` from your workspace).
+3. Open **Dashboard** and click Connect. If the browser asks to allow access to apps on this device, choose Allow.
+
+**What you get:**
+
+- The full live dashboard as a view: run buttons, agent replies, prompts, autopilot. It follows your Prioritizer theme. **Open in its own tab** opens it on its own.
+- ADO tasks show their eng-agents stage next to the ADO chip (Spec, Plan, Build 2/5, Review, and so on). Amber means it needs you. Click it to jump to that item in the Dashboard.
+- An ADO task not started yet gets **Start as feature** or **Start as bug** in its details. That runs `/start` in opencode for you.
+
+Stages refresh every 30 seconds while the page is open, and right away when you switch back to it. On a device without the dashboard (your phone, say) nothing changes. **Disconnect** is on the Dashboard view.
+
 ## Install it as a desktop app
 
 On the hosted GitHub Pages link in Chrome or Edge, use the Install button in the address bar. It opens in its own window with a dock or taskbar icon and works offline. It installs per user from the browser, with no admin rights or executable. If Install never appears on a work laptop, your company's browser policy may block web app installs.
@@ -87,7 +111,7 @@ On a phone, use your browser's "Add to Home Screen".
 
 ## Running it
 
-No build step. `index.html` holds the whole app (inline CSS and JavaScript). The only other files are for the installable app: `manifest.webmanifest`, `sw.js` and `icons/`. Open `index.html` directly, or serve the folder. When you ship a change, bump `CACHE` in `sw.js` so open windows offer a "New version" reload.
+No build step. `index.html` holds the whole app (inline CSS and JavaScript) except the themes, which are in `themes.css` so the eng-agents dashboard can share them. The only other files are for the installable app: `manifest.webmanifest`, `sw.js` and `icons/`. Open `index.html` directly, or serve the folder. When you ship a change, bump `CACHE` in `sw.js` so open windows offer a "New version" reload.
 
 ### Upgrading from the previous version
 

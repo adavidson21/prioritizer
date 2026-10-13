@@ -7,7 +7,7 @@
 <script>
 /* set the theme before first paint so there's no flash */
 (function(){ var p = 'system'; try { p = localStorage.getItem('prioritizer.theme') || 'system'; } catch(e) {}
-  if (!/^(slate|graphite|ivory|nord|dracula|solarized)$/.test(p)) p = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'graphite' : 'slate';
+  if (!/^(slate|graphite|ivory|rose|nord|dracula|solarized)$/.test(p)) p = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'graphite' : 'slate';
   document.documentElement.setAttribute('data-theme', p); })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,25 +22,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Prioritizer">
+<link rel="stylesheet" href="themes.css">
 <style>
-/* ---------- themes: five base colors each, everything else is derived ---------- */
-:root[data-theme=slate]   {--bg:#F7F7F8;--surface:#FFFFFF;--ink:#1C1D21;--muted:#5C5F66;--accent:#4F46E5;--on-accent:#FFFFFF;--danger:#B42318;color-scheme:light}
-:root[data-theme=graphite]{--bg:#141518;--surface:#1C1E22;--ink:#E8E9EC;--muted:#A0A4AB;--accent:#8C88FF;--on-accent:#141518;--danger:#F97066;color-scheme:dark}
-:root[data-theme=ivory]   {--bg:#FBF8F1;--surface:#FFFDF8;--ink:#3A3230;--muted:#6B5F59;--accent:#9C5A6A;--on-accent:#FFFFFF;--danger:#B42318;color-scheme:light}
-:root[data-theme=nord]    {--bg:#2E3440;--surface:#3B4252;--ink:#ECEFF4;--muted:#BCC4D2;--accent:#88C0D0;--on-accent:#2E3440;--danger:#F4B6BC;color-scheme:dark}
-:root[data-theme=dracula] {--bg:#282A36;--surface:#303241;--ink:#F8F8F2;--muted:#B0B6D3;--accent:#BD93F9;--on-accent:#282A36;--danger:#FF9494;color-scheme:dark}
-:root[data-theme=solarized]{--bg:#FDF6E3;--surface:#FFFCF4;--ink:#073642;--muted:#4F646B;--accent:#1F6FA8;--on-accent:#FFFFFF;--danger:#B42318;color-scheme:light}
+/* ---------- themes live in themes.css (shared with the eng-agents dashboard); app tokens here ---------- */
 :root{
-  --line:color-mix(in srgb,var(--ink) 12%,var(--surface));
-  --hover:color-mix(in srgb,var(--ink) 5%,var(--surface));
-  --accent-soft:color-mix(in srgb,var(--accent) 14%,var(--surface));
-  --danger-soft:color-mix(in srgb,var(--danger) 10%,var(--surface));
-  --side:color-mix(in srgb,var(--ink) 3%,var(--bg));
   --t1:var(--accent); --t2:color-mix(in srgb,var(--accent) 55%,var(--surface)); --t3:var(--muted); --t4:var(--line);
-  --shadow:0 1px 2px color-mix(in srgb,var(--ink) 8%,transparent),0 8px 24px -10px color-mix(in srgb,var(--ink) 22%,transparent);
-  --shadow-lg:0 2px 6px color-mix(in srgb,var(--ink) 10%,transparent),0 24px 48px -16px color-mix(in srgb,var(--ink) 35%,transparent);
-  --sans:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
-  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   --gutter:clamp(1rem,2.2vw,1.75rem);
   --side-w:240px; --side-mini:56px; --drawer-w:360px;
   --row-h:2.4rem;
@@ -176,6 +162,29 @@ button.chip.warn:hover{color:var(--danger);background:color-mix(in srgb,var(--da
 .dado{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.3rem 0 .1rem;font-size:.82rem;color:var(--muted)}
 .dado a{color:var(--accent);font-weight:500;text-decoration:none;border-radius:6px;padding:.1rem .3rem;margin-left:-.3rem}
 .dado a:hover{background:var(--accent-soft);color:var(--ink)}
+/* eng-agents: Dashboard view and work item stages */
+.engpane{flex:1;min-height:0;display:flex;padding:0 var(--gutter) var(--gutter)}
+.engpane[hidden]{display:none}
+.engpane iframe{flex:1;width:100%;min-height:0;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.chip.eng{cursor:pointer;border:0;font-family:inherit}
+.chip.eng:hover{background:var(--accent-soft);color:var(--ink)}
+.chip.eng.gate{background:var(--warn-soft);color:var(--warn)}
+.chip.eng .live{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:engpulse 1.4s ease-in-out infinite}
+@keyframes engpulse{50%{opacity:.25}}
+.deng{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.1rem 0 .2rem;padding:.55rem .7rem;border:1px solid var(--line);border-radius:10px;background:var(--sunk);font-size:.82rem;color:var(--muted)}
+.deng b{color:var(--ink);font-weight:600}
+.deng code{font-family:var(--mono);font-size:.78rem;color:var(--ink)}
+.deng .grow{flex:1}
+.deng.col{flex-direction:column;align-items:flex-start}
+.deng .acts{display:flex;gap:.4rem;flex-wrap:wrap}
+.engcard{max-width:36rem;margin:2.5rem auto;padding:1.4rem 1.5rem;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow);font-size:.9rem;color:var(--muted)}
+.engcard h2{margin:0 0 .4rem;font-size:1.05rem;font-weight:600;color:var(--ink)}
+.engcard ol{margin:.6rem 0 0;padding-left:1.2rem;display:grid;gap:.45rem}
+.engcard code{font-family:var(--mono);font-size:.8rem;color:var(--ink);background:var(--hover);padding:.05rem .3rem;border-radius:5px;word-break:break-all}
+.engcard .acts{display:flex;align-items:center;gap:.5rem;margin-top:1.1rem;flex-wrap:wrap}
+.engcard .fld{display:flex;align-items:center;gap:.5rem}
+.engcard input{width:6.5rem;min-height:2rem;padding:.3rem .5rem;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+@media (prefers-reduced-motion:reduce){.chip.eng .live{animation:none}}
 #adoBtn .mk-x{display:none}
 #adoBtn[data-ado=error]{color:var(--danger)}
 #adoBtn[data-ado=error] .mk-x{display:inline}
@@ -481,6 +490,7 @@ button.chip.warn:hover{color:var(--danger);background:color-mix(in srgb,var(--da
   <div class="page">
     <header class="phead" id="phead"></header>
     <main id="main"></main>
+    <div class="engpane" id="engPane" hidden></div>
   </div>
   <div class="dscrim" id="dscrim"></div>
   <aside class="drawer" id="drawer" aria-label="Task details"></aside>
@@ -525,11 +535,11 @@ const VQ = {
   fill:  {title: 'Fill-ins',   sub: 'Low value, low effort'},
   pit:   {title: 'Money pits', sub: 'Low value, high effort'}
 };
-const VIEWS = ['today','triage','rank','eisen','ve','people','archive'];
+const VIEWS = ['today','triage','rank','eisen','ve','people','archive','dash'];
 const LENSES = {rank: 'List', eisen: 'Eisenhower', ve: 'Value / Effort'};
 const NAV_OF = v => (v in LENSES) ? 'prio' : v;
-const THEMES = {system: 'System', slate: 'Slate', graphite: 'Graphite', ivory: 'Ivory', solarized: 'Solarized Light', nord: 'Nord', dracula: 'Dracula'};
-const SWATCH = {slate: ['#F7F7F8','#4F46E5'], graphite: ['#141518','#8C88FF'], ivory: ['#FBF8F1','#9C5A6A'], solarized: ['#FDF6E3','#1F6FA8'], nord: ['#2E3440','#88C0D0'], dracula: ['#282A36','#BD93F9']};
+const THEMES = {system: 'System', slate: 'Slate', graphite: 'Graphite', ivory: 'Ivory', rose: 'Ros\u00e9', solarized: 'Solarized Light', nord: 'Nord', dracula: 'Dracula'};
+const SWATCH = {slate: ['#F7F7F8','#4F46E5'], graphite: ['#141518','#8C88FF'], ivory: ['#FBF8F1','#9C5A6A'], rose: ['#FBF4F2','#A04F6C'], solarized: ['#FDF6E3','#1F6FA8'], nord: ['#2E3440','#88C0D0'], dracula: ['#282A36','#BD93F9']};
 const svg = (d, w = 1.5) => `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const ICON = {
   check: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.3 2.3 4.7-5"/></svg>',
@@ -545,11 +555,12 @@ const ICON = {
   triage: svg('<path d="M3 4.5h14l-5.3 6.3v4.4l-3.4 1.6v-6z"/>'),
   prio: svg('<path d="M4 5h12M4 10h8.5M4 15h5"/>', 1.7),
   people: svg('<circle cx="7.5" cy="7" r="2.7"/><path d="M2.8 16c.8-2.6 2.6-4 4.7-4s3.9 1.4 4.7 4"/><path d="M12.8 4.6a2.7 2.7 0 0 1 0 4.8M14.2 12.3c1.4.5 2.4 1.7 3 3.7"/>'),
+  dash: svg('<rect x="2.75" y="3.25" width="6" height="7.5" rx="1.3"/><rect x="11.25" y="3.25" width="6" height="4.5" rx="1.3"/><rect x="11.25" y="10.25" width="6" height="6.5" rx="1.3"/><rect x="2.75" y="13.25" width="6" height="3.5" rx="1.3"/>'),
   archive: svg('<rect x="2.8" y="4" width="14.4" height="3.6" rx="1"/><path d="M4 7.6v7.4a1.5 1.5 0 0 0 1.5 1.5h9a1.5 1.5 0 0 0 1.5-1.5V7.6M8 10.8h4"/>'),
   up: svg('<path d="M10 15.5v-11M5.5 9L10 4.5 14.5 9"/>', 1.6),
   top: svg('<path d="M10 16V8M6 11.5L10 7.5l4 4M4.5 4h11"/>', 1.6)
 };
-const NAV = [['today','Today',ICON.today],['triage','Triage',ICON.triage],['prio','Prioritize',ICON.prio],['people','People',ICON.people],['archive','Archive',ICON.archive]];
+const NAV = [['today','Today',ICON.today],['triage','Triage',ICON.triage],['prio','Prioritize',ICON.prio],['people','People',ICON.people],['archive','Archive',ICON.archive],['dash','Dashboard',ICON.dash]];
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -739,6 +750,8 @@ function commit(){ save(); render(); }
 let ui = {collapsed: false};
 try { ui = Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || '{}')); } catch(e) {}
 const saveUi = () => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch(e) {} };
+ui.eng = Object.assign({on: false, port: 4300}, ui.eng || {});
+if (state.view === 'dash' && !ui.eng.on) state.view = 'today';
 
 const listById = id => state.lists.find(l => l.id === id);
 const childrenOf = id => state.lists.filter(l => l.parentId === id);
@@ -935,7 +948,10 @@ function render(){
   renderSide();
   renderHead();
   const v = state.view;
-  if (v === 'rank') renderRank();
+  const dash = v === 'dash' && eng.status === 'ok';
+  main.hidden = dash; $('#engPane').hidden = !dash;
+  if (v === 'dash') renderDash();
+  else if (v === 'rank') renderRank();
   else if (v === 'today') renderToday();
   else if (v === 'triage') renderTriage();
   else if (v === 'people') renderPeople();
@@ -971,7 +987,7 @@ function renderSide(){
 const addBtn = (label = 'Add task') => `<button class="btn primary addbtn" data-add data-tip="Add a task. Shortcut: N or Ctrl+K">${ICON.plus}<span class="lbl">${label}</span><kbd>N</kbd></button>`;
 function renderHead(){
   const v = state.view, nav = NAV_OF(v);
-  const title = {today: 'Today', triage: 'Triage', prio: 'Prioritize', people: 'People', archive: 'Archive'}[nav];
+  const title = {today: 'Today', triage: 'Triage', prio: 'Prioritize', people: 'People', archive: 'Archive', dash: 'Dashboard'}[nav];
   let sub = esc(scopeName()), tools = '';
   if (v === 'today') sub = `${new Date().toLocaleDateString(undefined, {weekday: 'long', month: 'long', day: 'numeric'})} · ${sub}`;
   if (nav === 'prio'){
@@ -984,6 +1000,14 @@ function renderHead(){
   }
   if (v === 'triage') sub += ` · ${plural(triageQueue().length, 'task')} to sort`;
   if (v === 'people') tools = `<button class="btn" data-addperson>${ICON.plus}<span class="hide-sm">Person</span></button>`;
+  if (v === 'dash'){
+    const d = eng.data;
+    $('#phead').innerHTML = `<button class="ibtn menu-btn" id="menuBtn" aria-label="Open menu">${ICON.menu}</button>
+      <div class="ptitle"><h1>Dashboard</h1><span class="scopebtn" style="cursor:default">${eng.status === 'ok' && d ? `eng-agents ${esc(d.version || '')} · ${esc(d.workspace || '')}` : 'eng-agents live dashboard'}</span></div>
+      <div class="htools">${eng.status === 'ok' ? `<button class="btn" data-eng="reload" data-tip="Reload the dashboard">Reload</button><a class="btn" href="${esc(engBase())}/" target="_blank" rel="noopener">Open in its own tab</a>` : ''}
+        <button class="ibtn" data-eng="settings" aria-label="Dashboard connection" data-tip="Dashboard connection">${ICON.dots}</button></div>`;
+    return;
+  }
   $('#phead').innerHTML = `<button class="ibtn menu-btn" id="menuBtn" aria-label="Open menu">${ICON.menu}</button>
     <div class="ptitle"><h1>${title}</h1><button class="scopebtn" data-scopemenu aria-label="Change scope">${sub}${ICON.chevD}</button></div>
     ${tools ? `<div class="htools">${tools}</div>` : ''}${v !== 'archive' ? `<div class="hadd">${addBtn()}</div>` : ''}`;
@@ -997,6 +1021,7 @@ function row(t, o = {}){
   const s = score(t);
   let meta = '';
   if (t.ado) meta += `<span class="chip ado" data-tip="ADO ${esc(t.ado.type)} #${t.ado.id}, ${esc(t.ado.state)}">${esc(adoShort(t.ado.type))} ${t.ado.id}</span>`;
+  if (t.ado && !t.done) meta += engChip(t.ado.id);
   if (!t.done){
     if (nudgeDue(t)) meta += `<span class="chip warn" data-tip="Follow-up date ${fmtLong(t.nudgeOn)}">Nudge</span>`;
     else if (t.waiting) meta += `<span class="chip">Waiting</span>`;
@@ -1364,6 +1389,7 @@ function renderDrawer(){
     <div class="dbody">
       <textarea class="d-title" rows="1" data-f="title" data-fk="title" aria-label="Task">${esc(t.title)}</textarea>
       ${t.ado ? `<div class="dado"><a href="${esc(t.ado.url)}" target="_blank" rel="noopener" data-fk="adolink">Open ${esc(t.ado.type || 'item')} #${t.ado.id} in ADO</a><span>${esc(t.ado.state)}${t.ado.project ? ' · ' + esc(t.ado.project) : ''}</span>${t.ado.gone ? `<span class="chip">${ADO_GONE[t.ado.gone]}</span>` : ''}</div>` : ''}
+      ${t.ado ? engDrawer(t) : ''}
       <textarea class="d-notes" rows="3" data-f="notes" data-fk="notes" placeholder="Notes" aria-label="Notes">${esc(t.notes)}</textarea>
       <div class="dfld"><span class="lbl">Value</span><div class="seg">${[1,2,3,4].map(v => `<button data-dv="${v}" data-fk="v${v}" aria-pressed="${t.value === v}"${t.value === v ? ' class="on"' : ''}>${VALUE[v]}</button>`).join('')}</div></div>
       <div class="dfld"><span class="lbl">Effort</span><div class="seg">${EFFORTS.map(e => `<button data-de="${e}" data-fk="e${e}" aria-pressed="${t.effort === e}"${t.effort === e ? ' class="on"' : ''}>${e}<span class="pts">${POINTS[e]}</span></button>`).join('')}</div></div>
@@ -1447,6 +1473,8 @@ drawer.addEventListener('click', e => {
   if (a === 'wont') return wontDo(t.id);
   if (a === 'delete') return deleteTask(t.id);
   if (a === 'done') return toggleDone(t.id);
+  if (a === 'eng-open') return engOpen(t.ado.id);
+  if (a === 'eng-start') return engStart(t, b.dataset.lane, b);
 });
 
 /* ---------- modal, menu, toast ---------- */
@@ -1496,7 +1524,7 @@ function showHelp(){
   showModal(`<div class="sheet" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts"><h3>Keyboard shortcuts</h3>
     <table class="keys"><tbody>
       ${r('<kbd>N</kbd> <kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd>', 'Add a task')}
-      ${r('<kbd>1</kbd> to <kbd>5</kbd>', 'Today, Triage, Prioritize, People, Archive')}
+      ${r('<kbd>1</kbd> to <kbd>6</kbd>', 'Today, Triage, Prioritize, People, Archive, Dashboard')}
       ${r('<kbd>J</kbd> <kbd>K</kbd>', 'Next, previous task')}
       ${r('<kbd>Enter</kbd>', 'Open the selected task')}
       ${r('<kbd>X</kbd>', 'Complete or reopen')}
@@ -1569,6 +1597,7 @@ function applyTheme(){
   const p = themePref(), t = p === 'system' ? (darkMq.matches ? 'graphite' : 'slate') : p;
   document.documentElement.dataset.theme = t;
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = SWATCH[t][0];
+  engSendTheme();
 }
 darkMq.addEventListener && darkMq.addEventListener('change', applyTheme);
 function openThemeMenu(anchor){
@@ -2032,6 +2061,8 @@ document.addEventListener('click', e => {
   const chk = t.closest('[data-act="done"]'); if (chk){ toggleDone(chk.closest('[data-id]').dataset.id); return; }
   const fb = t.closest('[data-act="today"]'); if (fb){ toggleFocus(fb.closest('[data-id]').dataset.id); return; }
   const su = t.closest('[data-act="still"]'); if (su){ downgradeUrgent(su.closest('[data-id]').dataset.id); return; }
+  const ec = t.closest('[data-act="eng"]'); if (ec){ engOpen(ec.dataset.ado); return; }
+  const eb = t.closest('[data-eng]'); if (eb){ engAction(eb.dataset.eng); return; }
   const lo = t.closest('[data-left]');
   if (lo){
     const t0 = todayStr();
@@ -2122,7 +2153,7 @@ document.addEventListener('keydown', e => {
   if (state.view === 'triage' && !(onButton && (e.key === 'Enter' || e.key === ' ')) && triageKey(e)) return;
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (k === 'n' || k === '/'){ e.preventDefault(); openCmd(); }
-  else if (/^[1-5]$/.test(k)){ const nav = ['today','triage','prio','people','archive'][+k - 1]; setView(nav === 'prio' ? state.lens : nav); }
+  else if (/^[1-6]$/.test(k)){ const nav = ['today','triage','prio','people','archive','dash'][+k - 1]; setView(nav === 'prio' ? state.lens : nav); }
   else if (k === 'j' || k === 'ArrowDown' && ae.classList && ae.classList.contains('row')){ e.preventDefault(); moveSel(1); }
   else if (k === 'k' || k === 'ArrowUp' && ae.classList && ae.classList.contains('row')){ e.preventDefault(); moveSel(-1); }
   else if (k === 'Enter' && !onButton){
@@ -2473,6 +2504,176 @@ window.addEventListener('focus', () => adoSync(false));
 
 /* ---------- installable desktop app ---------- */
 let swReloading = false;
+/* ---------- eng-agents live dashboard: the Dashboard view and work item stages ----------
+   The live dashboard (eng-agents Start-LiveDashboard.ps1) runs on this computer at 127.0.0.1. Nothing is
+   fetched until you open Dashboard once. After that, ADO tasks show where their work item stands, and a
+   task can start its work item. The dashboard only answers sites listed in its config.json
+   ("dashboard": { "shellOrigins": [...] }), so the page and the dashboard both have to agree. */
+const ENG_EVERY = 30 * 1000;
+const ENG_STAGE = {start: 'Start', spec: 'Spec', plan: 'Plan', bug: 'Bug analysis', tasks: 'Tasks', build: 'Build', review: 'Review', pr: 'PR', ship: 'Ready to ship'};
+let eng = {status: 'idle', error: '', data: null, byId: new Map(), starting: new Map(), sig: ''};
+let engTimer = null, engBurst = null, engReady = false, engFocusId = null;
+const engBase = () => `http://127.0.0.1:${ui.eng.port}`;
+async function engFetch(path, body){
+  const r = await fetch(engBase() + path, {
+    method: body ? 'POST' : 'GET', cache: 'no-store', targetAddressSpace: 'loopback',
+    headers: body ? {'Content-Type': 'application/json'} : undefined, body: body ? JSON.stringify(body) : undefined
+  });
+  let data = null; try { data = await r.json(); } catch(e) {}
+  if (!r.ok) throw new Error((data && data.error) || `The dashboard answered HTTP ${r.status}`);
+  return data;
+}
+// Not running, or running without this site in shellOrigins: the browser can't tell the two apart.
+const engUnreachable = e => e instanceof TypeError || /fetch/i.test(e.message);
+async function engCheck(){
+  if (eng.status === 'checking') return;
+  const first = eng.status !== 'ok';
+  if (first) { eng.status = 'checking'; if (state.view === 'dash') render(); }
+  try {
+    const d = await engFetch('/api/shell/status');
+    if (!d || d.app !== 'eng-agents-dashboard') throw new Error(`Something else is answering on port ${ui.eng.port}.`);
+    const sig = JSON.stringify([d.items, d.starting, d.opencode && d.opencode.connected]);
+    const changed = first || sig !== eng.sig;
+    eng = {...eng, status: 'ok', error: '', data: d, sig,
+      byId: new Map((d.items || []).map(i => [String(i.id), i])), starting: new Map((d.starting || []).map(i => [String(i.id), i]))};
+    if (!ui.eng.on){ ui.eng.on = true; saveUi(); engSchedule(); }
+    if (changed) renderMainOnly();
+  } catch(e){
+    const was = eng.status;
+    eng.status = 'down'; eng.data = null; eng.byId = new Map(); eng.starting = new Map(); eng.sig = '';
+    eng.error = engUnreachable(e) ? '' : e.message;
+    if (was !== 'down') renderMainOnly();
+  }
+}
+function engSchedule(){
+  clearInterval(engTimer); engTimer = null;
+  if (ui.eng.on) engTimer = setInterval(() => { if (!document.hidden) engCheck(); }, ENG_EVERY);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && ui.eng.on) engCheck(); });
+
+function engItem(adoId){ return eng.status === 'ok' ? eng.byId.get(String(adoId)) || null : null; }
+function engLabel(i){
+  if (i.paused) return 'Paused';
+  if (i.waiting) return 'Agent is asking';
+  let l = ENG_STAGE[i.stage] || i.stage || 'Started';
+  if (i.stage === 'build' && i.tasks && i.tasks.total) l += ` ${i.tasks.done}/${i.tasks.total}`;
+  return l;
+}
+function engTip(i){
+  const n = i.next || {};
+  if (i.paused) return 'Paused in eng-agents. Open the dashboard to resume.';
+  if (i.waiting) return 'The agent is waiting for an answer. Open the dashboard.';
+  if (n.needsYou) return `Needs you: ${n.action || n.command || 'see the dashboard'}`;
+  if (i.agent === 'busy') return 'The agent is working on it';
+  return n.command ? `Next: ${n.command}` : (n.action || 'Open in the dashboard');
+}
+function engChip(adoId){
+  const i = engItem(adoId);
+  if (!i){
+    const st = eng.status === 'ok' && eng.starting.get(String(adoId));
+    if (!st) return '';
+    return st.waiting || st.error || st.agent === 'idle'
+      ? `<button class="chip eng gate" data-act="eng" data-ado="${esc(adoId)}" data-tip="${esc(st.error || (st.waiting ? '/start is asking you something. Open the dashboard.' : 'Finishing /start'))}">Starting</button>`
+      : `<button class="chip eng" data-act="eng" data-ado="${esc(adoId)}" data-tip="Running /start in opencode"><i class="live"></i>Starting</button>`;
+  }
+  const gate = i.paused || i.waiting || (i.next && i.next.needsYou) || i.blocked;
+  return `<button class="chip eng${gate ? ' gate' : ''}" data-act="eng" data-ado="${esc(adoId)}" data-tip="${esc(engTip(i))}">${i.agent === 'busy' ? '<i class="live"></i>' : ''}${esc(engLabel(i))}</button>`;
+}
+function engDrawer(t){
+  if (!ui.eng.on) return '';
+  if (eng.status !== 'ok') return `<div class="deng"><span>Live dashboard not reachable.</span><span class="grow"></span><button class="lnk" data-d="eng-open">Open Dashboard</button></div>`;
+  const i = engItem(t.ado.id), n = i && i.next || {};
+  if (i) return `<div class="deng"><span>eng-agents <b>${esc(engLabel(i))}</b>${n.command ? ` · next <code>${esc(n.command)}</code>` : n.action ? ` · ${esc(n.action)}` : ''}</span><span class="grow"></span><button class="btn" data-d="eng-open">Open in Dashboard</button></div>`;
+  const st = eng.starting.get(String(t.ado.id));
+  if (st) return `<div class="deng"><span><b>Starting</b> in opencode${st.error ? `: ${esc(st.error)}` : '...'}</span><span class="grow"></span><button class="lnk" data-d="eng-open">Watch it</button></div>`;
+  if (t.done) return '';
+  const bug = /bug/i.test(t.ado.type || '');
+  const oc = eng.data && eng.data.opencode && eng.data.opencode.connected;
+  return `<div class="deng col"><span>Not started in eng-agents.</span>${oc
+    ? `<div class="acts"><button class="btn${bug ? '' : ' primary'}" data-d="eng-start" data-lane="feature">Start as feature</button><button class="btn${bug ? ' primary' : ''}" data-d="eng-start" data-lane="bug">Start as bug</button></div>`
+    : '<span class="hint">opencode is not connected to the dashboard.</span>'}</div>`;
+}
+async function engStart(t, lane, btn){
+  if (btn) btn.disabled = true;
+  try {
+    await engFetch('/api/shell/start', {id: String(t.ado.id), lane});
+    toast(`Starting #${t.ado.id} as a ${lane} in opencode`, 'Watch it', () => engOpen(t.ado.id));
+    clearInterval(engBurst);
+    const until = Date.now() + 60 * 1000, id = String(t.ado.id);
+    engBurst = setInterval(() => { if (Date.now() > until || eng.byId.has(id)){ clearInterval(engBurst); return; } engCheck(); }, 3000);
+  } catch(e){
+    toast(engUnreachable(e) ? "Can't reach the live dashboard." : e.message);
+  }
+  engCheck();
+}
+
+/* the Dashboard view: the live dashboard's own page in a frame, kept loaded once opened */
+function engFrame(){
+  const pane = $('#engPane');
+  let f = $('#engFrame');
+  if (f && f.dataset.port !== String(ui.eng.port)){ f.remove(); f = null; }
+  if (!f){
+    engReady = false;
+    f = document.createElement('iframe');
+    f.id = 'engFrame'; f.title = 'Work dashboard'; f.dataset.port = ui.eng.port;
+    f.allow = 'loopback-network; local-network-access';
+    f.src = engBase() + '/?embed=1';
+    pane.appendChild(f);
+  }
+  return f;
+}
+function engPost(msg){
+  const f = $('#engFrame');
+  if (f && engReady && f.contentWindow) f.contentWindow.postMessage(msg, engBase());
+}
+function engSendTheme(){ engPost({type: 'eng-theme', theme: document.documentElement.dataset.theme}); }
+window.addEventListener('message', e => {
+  const f = $('#engFrame');
+  if (!f || e.source !== f.contentWindow || e.origin !== engBase()) return;
+  if (e.data && e.data.type === 'eng-ready'){
+    engReady = true; engSendTheme();
+    if (engFocusId){ engPost({type: 'eng-focus', id: engFocusId}); engFocusId = null; }
+  }
+});
+function engOpen(adoId){
+  engFocusId = adoId ? String(adoId) : null;
+  if (state.view !== 'dash') setView('dash'); else render();
+  if (engFocusId && engReady){ engPost({type: 'eng-focus', id: engFocusId}); engFocusId = null; }
+}
+function engAction(a){
+  if (a === 'reload'){ const f = $('#engFrame'); if (f) f.remove(); eng.status = 'idle'; render(); return; }
+  if (a === 'retry'){ eng.status = 'idle'; render(); return; }
+  if (a === 'settings'){ eng.status = 'setup'; render(); return; }
+  if (a === 'off'){
+    ui.eng.on = false; saveUi(); engSchedule();
+    const f = $('#engFrame'); if (f) f.remove();
+    eng = {status: 'setup', error: '', data: null, byId: new Map(), starting: new Map(), sig: ''};
+    render(); toast('Dashboard disconnected'); return;
+  }
+  if (a === 'connect'){
+    const inp = $('#engPort'), port = Math.round(+(inp && inp.value));
+    if (!(port >= 1024 && port <= 65535)){ toast('Use a port between 1024 and 65535.'); return; }
+    ui.eng.port = port; saveUi(); eng.status = 'idle'; render();
+  }
+}
+function renderDash(){
+  if (eng.status === 'idle'){ engCheck(); return; }
+  if (eng.status === 'ok'){ engFrame(); return; }
+  if (eng.status === 'checking'){ main.innerHTML = `<div class="empty"><b>Connecting to the live dashboard</b>Looking for it at 127.0.0.1:${ui.eng.port}.</div>`; return; }
+  const setup = eng.status === 'setup' || !ui.eng.on;
+  main.innerHTML = `<div class="engcard">
+    <h2>${setup ? 'Connect your work dashboard' : "Can't reach the live dashboard"}</h2>
+    ${eng.error ? `<p>${esc(eng.error)}</p>` : `<p>The eng-agents live dashboard runs on this computer. This page shows it here and puts each ADO task's stage next to it. Nothing leaves your computer.</p>`}
+    <ol>
+      <li>In your workspace, start it: <code>Start-LiveDashboard.ps1</code> from your eng-agents dashboard folder. Keep that window open.</li>
+      <li>Let it answer this site. In <code>~/.config/eng-agents/config.json</code> add <code>"dashboard": { "shellOrigins": ["${esc(location.origin)}"] }</code>, then restart it.</li>
+      <li>Click Connect. If the browser asks to allow access to apps on this device, choose Allow.</li>
+    </ol>
+    <div class="acts"><span class="fld"><label for="engPort">Port</label><input type="number" id="engPort" class="mono" min="1024" max="65535" value="${ui.eng.port}"></span>
+      <span class="grow" style="flex:1"></span>${ui.eng.on ? '<button class="btn text-danger" data-eng="off">Disconnect</button>' : ''}<button class="btn primary" data-eng="connect">${setup ? 'Connect' : 'Try again'}</button></div>
+  </div>`;
+}
+
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost','127.0.0.1','[::1]'].includes(location.hostname))){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then(reg => {
@@ -2489,7 +2690,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localho
 }
 
 /* test hook: lets automated checks call the model without the UI */
-window.__prioritizer = {get state(){ return state; }, set state(s){ state = s; }, adoApply, adoSync, ui, sanitize, migrateTask, urgency, score, tier, isStale, eKey, vKey, parseQuick, capacityCut, buildWorkbook, parseWorkbook, doImport, render, commit, triageQueue, takeSnap, setSnap: s => { snap = s; }};
+window.__prioritizer = {get state(){ return state; }, set state(s){ state = s; }, adoApply, adoSync, ui, sanitize, migrateTask, urgency, score, tier, isStale, eKey, vKey, parseQuick, capacityCut, buildWorkbook, parseWorkbook, doImport, render, commit, triageQueue, takeSnap, setSnap: s => { snap = s; }, engCheck, get eng(){ return eng; }};
 
 applyTheme();
 applySide();
@@ -2503,6 +2704,7 @@ if (bootRaw && bootRaw.version !== 2 && Array.isArray(bootRaw.tasks) && Array.is
 render();
 restoreSync();
 setAdo(); adoSchedule(); adoSync(false);
+engSchedule(); if (ui.eng.on && state.view !== 'dash') engCheck();
 })();
 </script>
 </body>
