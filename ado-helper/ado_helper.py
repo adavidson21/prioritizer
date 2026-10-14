@@ -9,6 +9,7 @@ requests to your own ADO server. Python 3.8+ standard library only, nothing to i
 
 Run:      py ado_helper.py            (first run asks for your ADO URL and PAT variable name)
 Options:  --setup     re-run the setup questions
+          --add-pr-source  add a collection + project to pull your pull requests from
           --test      check the connection, print what it finds, and exit
           --startup   start automatically when you log in to Windows
           --no-startup  undo --startup
@@ -24,7 +25,7 @@ import urllib.request
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, 'ado-helper.json')
 DEFAULTS = {
@@ -37,6 +38,11 @@ DEFAULTS = {
     'removed_states': ['Removed'],        # counts as won't do in the app
     'allowed_origins': ['https://prioritizer.alexisdavidson.org'],
     'verify_ssl': True,
+    # Pull requests to review. Each source is a collection URL + project, optionally limited to some repos.
+    # Leave empty to skip PRs. Example:
+    # [{"base_url": "https://tfs.example.com/Collection", "project": "Platform", "repos": []}]
+    'pr_sources': [],
+    'pr_teams': [],                       # team names that count as yours; empty = every team you're on
 }
 DEV_ORIGINS = ('http://localhost', 'http://127.0.0.1')  # any port, for testing a local copy of the app
 LOCAL_HOSTS = ('127.0.0.1', 'localhost')
@@ -70,7 +76,31 @@ def setup(cfg):
     if env:
         cfg['pat_env'] = env
     save_config(cfg)
-    print(f'\nSaved to {CONFIG_PATH}. Edit that file to change work item types or states.\n')
+    if not cfg.get('pr_sources'):
+        print('\n3) Pull requests to review (optional). Press Enter to skip.')
+        add_pr_sources(cfg)
+    print(f'\nSaved to {CONFIG_PATH}. Edit that file to change work item types, states or PR sources.\n')
+    return cfg
+
+
+def add_pr_sources(cfg):
+    srcs = list(cfg.get('pr_sources') or [])
+    while True:
+        default = cfg['base_url'] if not srcs else ''
+        url = input(f'   Collection URL for PRs [{default or "Enter to finish"}]: ').strip() or default
+        if not url:
+            break
+        proj = input('   Project name: ').strip()
+        if not proj:
+            break
+        repos = input('   Only these repos, comma separated [all]: ').strip()
+        srcs.append({'base_url': url.rstrip('/'), 'project': proj,
+                     'repos': [r.strip() for r in repos.split(',') if r.strip()]})
+        default = ''
+        if input('   Add another? [y/N]: ').strip().lower() != 'y':
+            break
+    cfg['pr_sources'] = srcs
+    save_config(cfg)
     return cfg
 
 
@@ -89,9 +119,9 @@ class HelperError(Exception):
 # ---------------------------------------------------------------- ADO client
 
 class Ado:
-    def __init__(self, cfg):
+    def __init__(self, cfg, base=None):
         self.cfg = cfg
-        self.base = cfg['base_url']
+        self.base = (base or cfg['base_url']).rstrip('/')
         if not self.base:
             raise HelperError('No ADO URL set. Run: py ado_helper.py --setup')
         token = base64.b64encode((':' + pat(cfg)).encode()).decode()
@@ -99,10 +129,11 @@ class Ado:
                         'Content-Type': 'application/json'}
         self.ctx = ssl.create_default_context() if cfg.get('verify_ssl', True) else ssl._create_unverified_context()
 
-    def call(self, method, path, body=None, query=None):
+    def call(self, method, path, body=None, query=None, project=None, api=None):
         q = dict(query or {})
-        q['api-version'] = self.cfg['api_version']
-        url = f'{self.base}/_apis/{path}?{urllib.parse.urlencode(q)}'
+        q['api-version'] = api or self.cfg['api_version']
+        scope = f'{self.base}/{urllib.parse.quote(project)}' if project else self.base
+        url = f'{scope}/_apis/{path}?{urllib.parse.urlencode(q)}'
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(url, data=data, method=method, headers=self.headers)
         try:
@@ -113,9 +144,10 @@ class Ado:
                 return json.loads(raw)
         except urllib.error.HTTPError as e:
             if e.code in (401, 403):
-                raise HelperError(f'ADO rejected the PAT (HTTP {e.code}). It may be expired or missing the Work Items (Read) scope.')
+                need = 'Code (Read)' if '/git/' in url else 'Project and Team (Read)' if '/teams' in url else 'Work Items (Read)'
+                raise HelperError(f'ADO rejected the PAT (HTTP {e.code}) for {self.base}. It may be expired or missing the {need} scope.')
             if e.code == 404:
-                raise HelperError(f'ADO URL not found (HTTP 404): {self.base}. It should end at the collection name.')
+                raise HelperError(f'ADO URL not found (HTTP 404): {url.split("?")[0]}. Check the collection URL and project name.')
             detail = ''
             try:
                 detail = json.loads(e.read()).get('message', '')
@@ -174,7 +206,7 @@ def shape(w, base):
     }
 
 
-def sync(cfg, known):
+def sync(cfg, known, known_prs=None):
     """Open items assigned to me, plus what happened to known items that dropped off."""
     ado = Ado(cfg)
     types, done = wiql_list(cfg['types']), wiql_list(cfg['closed_states'] + cfg['removed_states'])
@@ -199,7 +231,166 @@ def sync(cfg, known):
         else:
             s['reason'] = 'reassigned'   # still open, right type, but no longer assigned to you
         gone.append(s)
-    return {'items': items, 'gone': gone, 'syncedAt': datetime.now(timezone.utc).isoformat()}
+    out = {'items': items, 'gone': gone, 'syncedAt': datetime.now(timezone.utc).isoformat()}
+    if cfg.get('pr_sources'):
+        try:   # a PR problem shouldn't stop work items from syncing
+            out['prs'] = sync_prs(cfg, known_prs or [])
+        except HelperError as e:
+            out['prError'] = str(e)
+    return out
+
+
+# ---------------------------------------------------------------- pull requests
+#
+# Tiers (how much a PR is waiting on you):
+#   blocking  you were added by name as a Required reviewer
+#   asked     you were added by name, optional
+#   pool      only one of your teams was added, so any teammate can take it
+# Your vote decides whether it's on you: none = to review, "Waiting for author" = waiting,
+# Approve / Approve with suggestions / Reject = done. For team-only PRs, a teammate voting for
+# the team also counts as done.
+
+APPROVED, SUGGEST, WAITING, REJECTED = 10, 5, -5, -10
+
+
+def pr_key(src, pid):
+    return f'{src["base_url"].rstrip("/")}|{src["project"]}|{pid}'
+
+
+class PrSource:
+    def __init__(self, cfg, src):
+        self.src = dict(src, base_url=src['base_url'].rstrip('/'))
+        self.ado = Ado(cfg, self.src['base_url'])
+        self.project = self.src['project']
+        self.repos = {r.lower() for r in self.src.get('repos') or []}
+        self.cfg = cfg
+        self.me = None
+        self.teams = {}     # id -> name
+
+    def identify(self):
+        """Who am I here, and which teams am I on."""
+        for url in (self.ado.base, '/'.join(self.ado.base.split('/')[:3])):   # collection, then server root
+            try:
+                res = Ado(self.cfg, url).call('GET', 'connectionData', api='1.0')
+                self.me = (res.get('authenticatedUser') or {}).get('id')
+            except HelperError:
+                continue
+            if self.me:
+                break
+        if not self.me:
+            raise HelperError(f'Could not tell who you are on {self.ado.base}.')
+        wanted = {t.lower() for t in self.cfg.get('pr_teams') or []}
+        try:
+            res = self.ado.call('GET', f'projects/{urllib.parse.quote(self.project)}/teams', query={'$mine': 'true', '$top': 500})
+            for t in res.get('value', []):
+                if not wanted or t['name'].lower() in wanted:
+                    self.teams[t['id']] = t['name']
+        except HelperError as e:
+            self.team_error = str(e)   # still works for PRs you're named on
+
+    def active(self):
+        """Active PRs where you or one of your teams is a reviewer, by PR id."""
+        out = {}
+        for rid in [self.me] + list(self.teams):
+            res = self.ado.call('GET', 'git/pullrequests', project=self.project, query={
+                'searchCriteria.status': 'active', 'searchCriteria.reviewerId': rid, '$top': 500})
+            for pr in res.get('value', []):
+                if self.repos and ((pr.get('repository') or {}).get('name') or '').lower() not in self.repos:
+                    continue
+                out[pr['pullRequestId']] = pr
+        return out
+
+    def one(self, pid):
+        try:
+            return self.ado.call('GET', f'git/pullrequests/{pid}', project=self.project)
+        except HelperError as e:
+            if 'HTTP 404' in str(e):
+                return None
+            raise
+
+    def classify(self, pr):
+        """(status, info). status: review, waiting, reviewed, covered, unassigned, draft, own, merged, abandoned."""
+        revs = pr.get('reviewers') or []
+        mine = next((r for r in revs if r.get('id') == self.me), None)
+        teams = [r for r in revs if r.get('id') in self.teams]
+        repo = (pr.get('repository') or {}).get('name', '')
+        author = person(pr.get('createdBy'))
+        req_others = [r for r in revs if r.get('isRequired') and r.get('id') != self.me]
+        info = {
+            'key': pr_key(self.src, pr['pullRequestId']),
+            'id': pr['pullRequestId'],
+            'title': pr.get('title', ''),
+            'repo': repo,
+            'project': self.project,
+            'author': author,
+            'created': day(pr.get('creationDate')),
+            'url': f'{self.ado.base}/{urllib.parse.quote(self.project)}/_git/{urllib.parse.quote(repo)}/pullrequest/{pr["pullRequestId"]}',
+            'tier': 'blocking' if mine and mine.get('isRequired') else 'asked' if mine else 'pool',
+            'via': [self.teams[r['id']] for r in teams],
+            # every other required reviewer already approved: you're the last one holding it up
+            'lastBlocker': bool(mine and mine.get('isRequired') and all(r.get('vote', 0) >= SUGGEST for r in req_others)),
+        }
+        status = pr.get('status')
+        if status == 'completed':
+            return 'merged', info
+        if status == 'abandoned':
+            return 'abandoned', info
+        if (pr.get('createdBy') or {}).get('id') == self.me:
+            return 'own', info
+        if pr.get('isDraft'):
+            return 'draft', info
+        if not mine and not teams:
+            return 'unassigned', info
+        vote = mine.get('vote', 0) if mine else 0
+        if vote == WAITING:
+            return 'waiting', info
+        if vote:
+            return 'reviewed', info
+        team_ids = {r['id'] for r in teams}
+        voted_for_team = any(r.get('vote', 0) and team_ids & {v.get('id') for v in r.get('votedFor') or []} for r in revs)
+        if not mine and (voted_for_team or any(r.get('vote', 0) for r in teams)):
+            return 'covered', info
+        return 'review', info
+
+
+def sync_prs(cfg, known):
+    """PRs on you now, plus what happened to known PRs that dropped off."""
+    items, gone, notes = [], [], []
+    known = set(known)
+    for src in cfg.get('pr_sources') or []:
+        ps = PrSource(cfg, src)
+        ps.identify()
+        if getattr(ps, 'team_error', None):
+            notes.append(f'Team-only PRs skipped for {ps.project}: {ps.team_error}')
+        active = ps.active()
+        seen = set()
+        for pr in active.values():
+            st, info = ps.classify(pr)
+            if st in ('review', 'waiting'):
+                info['waiting'] = st == 'waiting'
+                items.append(info)
+                seen.add(info['key'])
+            elif info['key'] in known:
+                info['reason'] = st
+                gone.append(info)
+                seen.add(info['key'])
+        prefix = pr_key(src, '')
+        for key in known:
+            if key in seen or not key.startswith(prefix):
+                continue
+            pid = key[len(prefix):]
+            pr = ps.one(int(pid)) if pid.isdigit() else None
+            if not pr:
+                gone.append({'key': key, 'reason': 'missing'})
+                continue
+            st, info = ps.classify(pr)
+            if st in ('review', 'waiting'):   # repo filter or paging missed it; still yours
+                info['waiting'] = st == 'waiting'
+                items.append(info)
+            else:
+                info['reason'] = st
+                gone.append(info)
+    return {'items': items, 'gone': gone, 'notes': notes}
 
 
 # ---------------------------------------------------------------- local server
@@ -256,7 +447,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.guard():
             return
         if self.path.split('?')[0] == '/health':
-            return self.send_json(200, {'ok': True, 'version': VERSION, 'base': self.cfg['base_url'], 'types': self.cfg['types']})
+            return self.send_json(200, {'ok': True, 'version': VERSION, 'base': self.cfg['base_url'], 'types': self.cfg['types'],
+                                        'prSources': [f'{s["base_url"]} / {s["project"]}' for s in self.cfg.get('pr_sources') or []]})
         self.send_json(404, {'error': 'Not found'})
 
     def do_POST(self):
@@ -268,7 +460,8 @@ class Handler(BaseHTTPRequestHandler):
             n = min(int(self.headers.get('Content-Length') or 0), 1_000_000)
             body = json.loads(self.rfile.read(n) or b'{}')
             known = [int(x) for x in body.get('known', []) if str(x).isdigit()][:5000]
-            self.send_json(200, sync(self.cfg, known))
+            known_prs = [str(x)[:500] for x in body.get('knownPrs', []) if isinstance(x, str)][:2000]
+            self.send_json(200, sync(self.cfg, known, known_prs))
         except HelperError as e:
             self.send_json(502, {'error': str(e)})
         except Exception as e:  # keep running whatever happens
@@ -326,6 +519,8 @@ def main():
             if not sys.stdin or not sys.stdin.isatty():
                 raise HelperError('Not set up yet. Run it once in a terminal: py ado_helper.py')
             cfg = setup(cfg)
+        if '--add-pr-source' in args:
+            add_pr_sources(cfg)
         if '--startup' in args:
             install_startup()
         if '--test' in args:
@@ -333,6 +528,19 @@ def main():
             print(f'Connected. {len(r["items"])} open work items assigned to you:')
             for it in r['items'][:15]:
                 print(f'  #{it["id"]}  {it["type"]:<11} {it["state"]:<10} {it["title"]}')
+            if not cfg.get('pr_sources'):
+                print('\nNo PR sources set. Add one with: py ado_helper.py --add-pr-source')
+            elif r.get('prError'):
+                print('\nPull requests failed: ' + r['prError'])
+            else:
+                prs = r['prs']['items']
+                print(f'\n{len(prs)} pull requests waiting on you:')
+                order = {'blocking': 0, 'asked': 1, 'pool': 2}
+                for p in sorted(prs, key=lambda p: (order[p['tier']], p['created'] or '')):
+                    tag = 'waiting' if p['waiting'] else p['tier'] + (' (last one)' if p['lastBlocker'] else '')
+                    print(f'  PR {p["id"]:<6} {tag:<20} {p["repo"]}: {p["title"]}')
+                for n in r['prs']['notes']:
+                    print('  Note: ' + n)
             return
         serve(cfg)
     except HelperError as e:
