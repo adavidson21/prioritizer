@@ -58,7 +58,7 @@ Slate (light) and Graphite (dark) follow your system setting by default. Also av
 
 ## Azure DevOps work items
 
-Your ADO Issues, Bugs and User Stories assigned to you show up as tasks in an **ADO** list, and in All lists next to everything else. Read-only for now.
+Your ADO Issues, Bugs and User Stories assigned to you, and pull requests waiting on your review, show up as tasks in an **ADO** list, and in All lists next to everything else. Read-only for now.
 
 **How it connects:** a small helper (`ado-helper/ado_helper.py`, Python standard library only) runs on your computer. It reads your PAT from an environment variable and calls your ADO server. The app talks only to the helper at `127.0.0.1`, so the PAT never touches the page or leaves your computer. The helper only answers this site and only on this computer.
 
@@ -77,7 +77,27 @@ Your ADO Issues, Bugs and User Stories assigned to you show up as tasks in an **
 - Reassigned to someone else: marked won't do with a note saying who and when, so it's in the Archive. If it comes back to you, it reopens.
 - Deleting an ADO task here keeps it from coming back.
 
-Work item types and which states count as closed are in `ado-helper.json` (`types`, `closed_states`, `removed_states`). A PAT with Work Items (Read) is enough.
+Work item types and which states count as closed are in `ado-helper.json` (`types`, `closed_states`, `removed_states`). A PAT with Work Items (Read) is enough for work items.
+
+### Pull requests to review
+
+Active PRs where you or one of your teams is a reviewer become tasks in **ADO > Pull requests**, titled `Review: <PR title>`. Each gets a tier based on how much it's waiting on you:
+
+| Tier | When | Starting value | Urgent |
+| --- | --- | --- | --- |
+| Blocking | You're a named, required reviewer | High | Yes |
+| Asked | You're a named, optional reviewer | Medium | No |
+| Team | Only your team was added, so any teammate can take it | Low | No |
+
+A Blocking PR where every other required reviewer has already approved shows **Last approval**. Effort starts at S. Age counts from when the PR was opened, so old PRs rise in Triage.
+
+- **Your vote decides when it's done.** Approve, Approve with suggestions or Reject completes the task. Waiting for author moves it to Waiting with the author attached, so it shows on their People card. If your vote resets after a new push, it comes back to you.
+- **Team PRs** complete when a teammate votes for the team.
+- **Completed or abandoned** in ADO completes the task. Removed as a reviewer, back to draft, or not found marks it won't do.
+- If a PR moves between tiers (for example, someone adds you as required), value and urgent follow unless you've changed them.
+- Drafts and your own PRs are skipped. Deleting a PR task keeps it from coming back.
+
+**Setup:** run `py ado_helper.py --add-pr-source` and enter each collection URL and project to watch, optionally limited to some repos. This can be a different collection than your work items, and you can add more than one. Your PAT also needs **Code (Read)**, plus **Project and Team (Read)** for team PRs. `py ado_helper.py --test` lists the PRs it finds by tier and says which scope is missing if one is. In `ado-helper.json`, `pr_teams` limits which of your teams count (empty means all of them).
 
 ## Install it as a desktop app
 
