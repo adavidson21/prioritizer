@@ -185,6 +185,19 @@ button.chip.warn:hover{color:var(--danger);background:color-mix(in srgb,var(--da
 .engcard .fld{display:flex;align-items:center;gap:.5rem}
 .engcard input{width:6.5rem;min-height:2rem;padding:.3rem .5rem;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
 @media (prefers-reduced-motion:reduce){.chip.eng .live{animation:none}}
+#adoBtn{position:relative}
+#adoBtn[data-pending]::after{content:attr(data-pending);position:absolute;top:-2px;right:-3px;min-width:1rem;height:1rem;padding:0 .2rem;border-radius:999px;background:var(--accent);color:var(--on-accent);font:500 .6rem/1rem var(--mono);text-align:center}
+.pick{list-style:none;margin:.5rem 0 0;padding:0;max-height:50vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.pick li{display:flex;gap:.6rem;align-items:flex-start;padding:.55rem .7rem;border-top:1px solid var(--line)}
+.pick li:first-child{border-top:0}
+.pick label{flex:1;min-width:0;display:flex;gap:.6rem;align-items:flex-start;justify-content:flex-start;text-align:left;cursor:pointer;font-size:.88rem;font-weight:400;color:var(--ink);text-transform:none;letter-spacing:0;margin:0}
+.sheet .pick input{flex:none;width:auto;height:auto;padding:0;border:0;margin:.2rem 0 0;accent-color:var(--accent)}
+.pick .ptx{flex:1;min-width:0}
+.pick .pmeta{display:block;font-size:.76rem;font-weight:400;color:var(--muted);margin-top:.1rem;text-transform:none;letter-spacing:0}
+.sheet .opts input{width:auto;flex:none;padding:0;border:0;margin:0;accent-color:var(--accent)}
+.pick a{font-size:.76rem;color:var(--accent);text-decoration:none;white-space:nowrap}
+.sheet .opts{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:.3rem;margin-top:.8rem;font-size:.86rem}
+.sheet .opts label{display:flex;gap:.5rem;align-items:center;justify-content:flex-start;cursor:pointer;margin:0;font-weight:400}
 #adoBtn .mk-x{display:none}
 #adoBtn[data-ado=error]{color:var(--danger)}
 #adoBtn[data-ado=error] .mk-x{display:inline}
@@ -628,7 +641,7 @@ function byScore(a, b){
 /* ---------- state ---------- */
 function fresh(){
   const main = {id: uid(), name: 'Main', parentId: null};
-  return {version: 2, lists: [main], scope: 'all', view: 'today', lens: 'rank', colorIdx: 0, tasks: [], people: [], capacity: 20, capacityAt: 0, ado: {skip: [], skipPr: []}};
+  return {version: 2, lists: [main], scope: 'all', view: 'today', lens: 'rank', colorIdx: 0, tasks: [], people: [], capacity: 20, capacityAt: 0, ado: {skip: [], skipPr: [], choose: true, pending: []}};
 }
 function normalizeRanks(s){
   s.tasks.sort((a,b) => (a.rank ?? 0) - (b.rank ?? 0)).forEach((t,i) => t.rank = i + 1);
@@ -682,6 +695,12 @@ function cleanPr(a){
   if (PR_GONES.includes(a.gone)) o.gone = a.gone;
   return o;
 }
+// A new work item waiting for you to add or skip it.
+function cleanPending(a){
+  const link = cleanAdo(a); if (!link) return null;
+  const pr = parseInt(a.priority, 10);
+  return Object.assign(link, {title: typeof a.title === 'string' ? a.title.slice(0, 500) : '', priority: pr >= 1 && pr <= 4 ? pr : null, seen: isDate(a.seen) ? a.seen : todayStr()});
+}
 function sanitize(s){
   if (!s || !Array.isArray(s.lists) || !s.lists.length) return fresh();
   s.version = 2;
@@ -724,6 +743,8 @@ function sanitize(s){
   if (s.ado.listId && !ids.has(s.ado.listId)) delete s.ado.listId;
   s.ado.skip = Array.isArray(s.ado.skip) ? s.ado.skip.filter(n => Number.isInteger(n)).slice(-500) : [];
   s.ado.skipPr = Array.isArray(s.ado.skipPr) ? s.ado.skipPr.filter(k => typeof k === 'string').slice(-500) : [];
+  s.ado.choose = s.ado.choose !== false;   // new work items wait for you to pick them (default)
+  s.ado.pending = Array.isArray(s.ado.pending) ? s.ado.pending.map(cleanPending).filter(Boolean).slice(0, 300) : [];
   if (s.ado.prListId && !ids.has(s.ado.prListId)) delete s.ado.prListId;
   normalizeRanks(s);
   return s;
@@ -2410,24 +2431,79 @@ function prList(){
   state.ado.prListId = L.id;
   return L;
 }
+function adoAddItem(it, rank){
+  const link = {id: it.id, type: it.type, state: it.state, url: it.url, project: it.project, due: isDate(it.due) ? it.due : undefined};
+  const nt = {id: uid(), title: it.title || `ADO #${it.id}`, notes: '', color: COLORS[state.colorIdx++ % COLORS.length], rank,
+    value: ADO_VALUE[it.priority] || null, effort: null, due: link.due || null, urgentFlag: false, listId: adoList().id,
+    done: false, doneAt: null, wontDo: false, createdAt: todayStr(), ageFrom: todayStr(), waiting: false, nudgeOn: null, focusOn: null, people: []};
+  nt.ado = cleanAdo(link);
+  state.tasks.push(nt);
+  return nt;
+}
+// Add or skip picked pending items. Skipped ones go on the skip list so they don't come back.
+function adoPick(addIds, skipIds){
+  const add = new Set(addIds), skip = new Set(skipIds);
+  let maxRank = state.tasks.reduce((m, t) => Math.max(m, t.rank), 0), added = 0;
+  for (const p of state.ado.pending){
+    if (add.has(p.id) && !state.tasks.some(t => t.ado && t.ado.id === p.id)){ adoAddItem(p, ++maxRank); added++; }
+    else if (skip.has(p.id)) state.ado.skip.push(p.id);
+  }
+  state.ado.pending = state.ado.pending.filter(p => !add.has(p.id) && !skip.has(p.id));
+  return added;
+}
+function adoReview(){
+  const P = state.ado.pending;
+  if (!P.length){ toast('No new ADO work items to review.'); return; }
+  setAdo();
+  const item = p => `<li><label><input type="checkbox" value="${p.id}" checked><span class="ptx">${esc(p.title || 'ADO #' + p.id)}
+      <span class="pmeta">${esc(adoShort(p.type))} ${p.id} · ${esc(p.state)}${p.priority ? ' · P' + p.priority : ''}${p.due ? ' · due ' + fmtDay(p.due) : ''}${p.project ? ' · ' + esc(p.project) : ''}</span></span></label>
+      ${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">Open</a>` : ''}</li>`;
+  const sorted = [...P].sort((a, b) => (a.priority || 9) - (b.priority || 9) || (a.due || '9').localeCompare(b.due || '9') || b.id - a.id);
+  showModal(`<div class="sheet" role="dialog" aria-modal="true" aria-label="New ADO work items"><h3>New ADO work items</h3>
+    <p class="hint">Assigned to you and not on your board yet. Checked items become tasks. Skipped items won't be offered again.</p>
+    <div class="drow" style="margin-top:.5rem;gap:.8rem"><button class="lnk" data-all="1">Check all</button><button class="lnk" data-all="0">Uncheck all</button></div>
+    <ul class="pick">${sorted.map(item).join('')}</ul>
+    <footer><button class="btn" data-skip>Skip unchecked</button><span class="grow"></span><button class="btn" data-close>Later</button><button class="btn primary" data-add>Add checked</button></footer></div>`,
+    sh => {
+      const boxes = () => [...sh.querySelectorAll('.pick input')];
+      const sync = () => { const k = boxes().filter(b => b.checked).length; const a = sh.querySelector('[data-add]'); a.textContent = k ? `Add ${k}` : 'Add checked'; a.disabled = !k; };
+      sh.addEventListener('change', sync); sync();
+      sh.addEventListener('click', e => {
+        const all = e.target.closest('[data-all]'); if (all){ boxes().forEach(b => b.checked = all.dataset.all === '1'); sync(); return; }
+        const isAdd = e.target.closest('[data-add]'), isSkip = e.target.closest('[data-skip]');
+        if (!isAdd && !isSkip) return;
+        const on = boxes().filter(b => b.checked).map(b => +b.value), off = boxes().filter(b => !b.checked).map(b => +b.value);
+        // Add: add checked, leave unchecked for later. Skip unchecked: add checked too, and skip the rest for good.
+        const added = adoPick(on, isSkip ? off : []);
+        normalizeRanks(state); commit(); setAdo(); closeModal();
+        const bits = [added && `Added ${plural(added, 'task')}`, isSkip && off.length && `skipped ${off.length}`].filter(Boolean);
+        if (bits.length) toast(bits.join(', ').replace(/^s/, 'S'), added ? 'Show' : null, () => setScope(state.ado.listId));
+      });
+    });
+}
 function adoNote(t, line){ t.notes = (t.notes ? t.notes + '\n' : '') + line; }
 
 // Pure merge of a helper response into state; returns counts. Exposed on the test hook.
 function adoApply(res){
-  const n = {added: 0, updated: 0, closed: 0, removed: 0, reopened: 0, prAdded: 0, prBlocking: 0, prBack: 0, prDone: 0};
+  const n = {added: 0, updated: 0, closed: 0, removed: 0, reopened: 0, pending: 0, pendingChanged: false, prAdded: 0, prBlocking: 0, prBack: 0, prDone: 0};
   const byId = new Map(state.tasks.filter(t => t.ado).map(t => [t.ado.id, t]));
   const skip = new Set(state.ado.skip);
   let maxRank = state.tasks.reduce((m, t) => Math.max(m, t.rank), 0);
+  // res.items is every open item assigned to you, so the pending list is rebuilt each sync:
+  // anything closed or reassigned before you picked it just drops off.
+  const oldPending = new Map(state.ado.pending.map(p => [p.id, p])), pending = [];
   for (const it of res.items || []){
     const t = byId.get(it.id);
     const link = {id: it.id, type: it.type, state: it.state, url: it.url, project: it.project, due: isDate(it.due) ? it.due : undefined};
     if (!t){
       if (skip.has(it.id)) continue;
-      const nt = {id: uid(), title: it.title || `ADO #${it.id}`, notes: '', color: COLORS[state.colorIdx++ % COLORS.length], rank: ++maxRank,
-        value: ADO_VALUE[it.priority] || null, effort: null, due: link.due || null, urgentFlag: false, listId: adoList().id,
-        done: false, doneAt: null, wontDo: false, createdAt: todayStr(), ageFrom: todayStr(), waiting: false, nudgeOn: null, focusOn: null, people: []};
-      nt.ado = cleanAdo(link);
-      state.tasks.push(nt); n.added++;
+      if (state.ado.choose){
+        const old = oldPending.get(it.id);
+        const p = cleanPending({...it, seen: old ? old.seen : todayStr()});
+        if (p){ pending.push(p); if (!old) n.pending++; }
+        continue;
+      }
+      adoAddItem(it, ++maxRank); n.added++;
       continue;
     }
     const before = JSON.stringify([t.title, t.ado, t.due, t.done]);
@@ -2440,6 +2516,7 @@ function adoApply(res){
     t.ado = cleanAdo(link);
     if (before !== JSON.stringify([t.title, t.ado, t.due, t.done])) n.updated++;
   }
+  if (Array.isArray(res.items)){ if (pending.length !== oldPending.size || pending.some(p => !oldPending.has(p.id))) n.pendingChanged = true; state.ado.pending = pending; }
   if (res.prs) prApply(res.prs, n);
   for (const g of res.gone || []){
     const t = byId.get(g.id); if (!t) continue;
@@ -2534,11 +2611,12 @@ async function adoSync(manual){
     flushText();
     const n = adoApply(res);
     ui.ado.last = Date.now(); ui.ado.error = res.prError ? `Pull requests: ${res.prError}` : ''; saveUi();
-    const changed = n.added + n.updated + n.closed + n.removed + n.reopened + n.prDone;
+    const changed = n.added + n.updated + n.closed + n.removed + n.reopened + n.prDone + (n.pendingChanged ? 1 : 0);
     if (changed){ normalizeRanks(state); commit(); }
     const bits = [n.prBlocking && `${n.prBlocking} PR${n.prBlocking > 1 ? 's' : ''} blocked on you`, n.prBack && `${n.prBack} PR${n.prBack > 1 ? 's' : ''} back to you`,
       n.added && `${n.added} new`, n.closed && `${n.closed} closed`, n.removed && `${n.removed} reassigned or removed`, n.reopened && `${n.reopened} reopened`].filter(Boolean);
-    if (bits.length) toast(`ADO: ${bits.join(', ')}`, n.added ? 'Show' : null, () => setScope(n.prAdded && n.prAdded === n.added ? state.ado.prListId : state.ado.listId));
+    if (n.pending) toast(`ADO: ${plural(n.pending, 'new work item')} to review${bits.length ? ', ' + bits.join(', ') : ''}`, 'Review', adoReview);
+    else if (bits.length) toast(`ADO: ${bits.join(', ')}`, n.added ? 'Show' : null, () => setScope(n.prAdded && n.prAdded === n.added ? state.ado.prListId : state.ado.listId));
     else if (manual) toast(res.prError ? `Work items synced, but pull requests failed: ${res.prError}`
       : `ADO is up to date. ${plural((res.items || []).length, 'open item')}${res.prs ? `, ${plural(res.prs.items.length, 'PR')} to review` : ''}.`);
   } catch(e){
@@ -2552,6 +2630,8 @@ function adoSchedule(){
 }
 function setAdo(){
   const b = $('#adoBtn'); if (!b) return;
+  const np = ui.ado.on ? state.ado.pending.length : 0;
+  if (np) b.dataset.pending = np > 99 ? '99+' : np; else delete b.dataset.pending;
   const ago = ui.ado.last ? Math.round((Date.now() - ui.ado.last) / 60000) : null;
   b.dataset.ado = adoBusy ? 'busy' : !ui.ado.on ? 'off' : ui.ado.error ? 'error' : 'on';
   b.dataset.tip = !ui.ado.on ? 'Connect Azure DevOps' : adoBusy ? 'Syncing with ADO' : ui.ado.error ? `ADO: ${ui.ado.error}`
@@ -2560,7 +2640,7 @@ function setAdo(){
 }
 function adoSetup(){
   showModal(`<div class="sheet" role="dialog" aria-modal="true" aria-label="Connect Azure DevOps"><h3>Connect Azure DevOps</h3>
-    <p>Your Issues, Bugs and User Stories, plus pull requests waiting on your review, show up as tasks in an <b>ADO</b> list. A small helper on this computer talks to ADO with your PAT, so the PAT never touches this page or leaves your computer.</p>
+    <p>Your Issues, Bugs and User Stories, plus pull requests waiting on your review, show up as tasks in an <b>ADO</b> list. New work items wait for you to pick them, unless you choose to add them automatically below. A small helper on this computer talks to ADO with your PAT, so the PAT never touches this page or leaves your computer.</p>
     <ol class="steps">
       <li>Download <a class="lnk" href="ado-helper/ado_helper.py" download>ado_helper.py</a> to a folder you keep, like Documents.</li>
       <li>In that folder, run <code>py ado_helper.py</code>. The first time, it asks for your ADO collection URL and the name of the environment variable holding your PAT.</li>
@@ -2569,13 +2649,18 @@ function adoSetup(){
       <li>Click Connect. If the browser asks to allow access to apps on this device, choose Allow.</li>
     </ol>
     <div class="fld"><label for="adoPort">Helper port</label><input type="number" id="adoPort" class="mono" min="1024" max="65535" value="${ui.ado.port}"></div>
+    <div class="opts" role="radiogroup" aria-label="New work items"><span class="lbl">New work items assigned to you</span>
+      <label><input type="radio" name="adoChoose" value="1"${state.ado.choose ? ' checked' : ''}> Let me choose which to add</label>
+      <label><input type="radio" name="adoChoose" value="0"${state.ado.choose ? '' : ' checked'}> Add them automatically</label></div>
     <p class="hint" id="adoMsg" aria-live="polite" style="margin-top:.6rem">${ui.ado.on && ui.ado.error ? esc(ui.ado.error) : ''}</p>
-    <footer>${ui.ado.on ? '<button class="btn text-danger" data-ado-off>Disconnect</button>' : ''}<span class="grow"></span><button class="btn" data-close>Cancel</button><button class="btn primary" data-ado-go>Connect</button></footer></div>`,
+    <footer>${ui.ado.on ? '<button class="btn text-danger" data-ado-off>Disconnect</button>' : ''}<span class="grow"></span><button class="btn" data-close>Cancel</button><button class="btn primary" data-ado-go>${ui.ado.on ? 'Save' : 'Connect'}</button></footer></div>`,
     sh => sh.addEventListener('click', async e => {
       if (e.target.closest('[data-ado-off]')){ ui.ado.on = false; ui.ado.error = ''; saveUi(); adoSchedule(); setAdo(); closeModal(); toast('ADO disconnected. Synced tasks stay in your board.'); return; }
       const go = e.target.closest('[data-ado-go]'); if (!go) return;
       const port = Math.round(+sh.querySelector('#adoPort').value), msg = sh.querySelector('#adoMsg');
       if (!(port >= 1024 && port <= 65535)){ msg.textContent = 'Use a port between 1024 and 65535.'; return; }
+      const choose = sh.querySelector('[name=adoChoose]:checked').value === '1';
+      if (choose !== state.ado.choose){ state.ado.choose = choose; if (!choose){ adoPick(state.ado.pending.map(p => p.id), []); normalizeRanks(state); } commit(); }
       ui.ado.port = port; go.disabled = true; msg.textContent = 'Checking the helper...';
       try {
         await adoFetch('/health');
@@ -2592,10 +2677,12 @@ function onAdoClick(btn){
   if (!ui.ado.on) return adoSetup();
   const ago = ui.ado.last ? fmtMD(new Date(ui.ado.last)) + ' ' + new Date(ui.ado.last).toLocaleTimeString(undefined, {hour: 'numeric', minute: '2-digit'}) : 'never';
   popMenu(`<div class="who"><b>Azure DevOps</b>${ui.ado.error ? esc(ui.ado.error) : `Last sync ${esc(ago)}`}</div>
+    ${state.ado.pending.length ? `<button data-a="review">Review ${plural(state.ado.pending.length, 'new item')}</button>` : ''}
     <button data-a="now">Sync now</button><button data-a="show">Show ADO list</button><button data-a="setup">Settings</button>`, btn)
     .addEventListener('click', e => {
       const b = e.target.closest('[data-a]'); if (!b) return;
       closeMenu();
+      if (b.dataset.a === 'review') adoReview();
       if (b.dataset.a === 'now') adoSync(true);
       if (b.dataset.a === 'show'){ adoList(); setScope(state.ado.listId); }
       if (b.dataset.a === 'setup') adoSetup();
@@ -2792,7 +2879,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localho
 }
 
 /* test hook: lets automated checks call the model without the UI */
-window.__prioritizer = {get state(){ return state; }, set state(s){ state = s; }, adoApply, adoSync, ui, sanitize, migrateTask, urgency, score, tier, isStale, eKey, vKey, parseQuick, capacityCut, buildWorkbook, parseWorkbook, doImport, render, commit, triageQueue, takeSnap, setSnap: s => { snap = s; }, engCheck, get eng(){ return eng; }};
+window.__prioritizer = {get state(){ return state; }, set state(s){ state = s; }, adoApply, adoPick, adoReview, adoSync, ui, sanitize, migrateTask, urgency, score, tier, isStale, eKey, vKey, parseQuick, capacityCut, buildWorkbook, parseWorkbook, doImport, render, commit, triageQueue, takeSnap, setSnap: s => { snap = s; }, engCheck, get eng(){ return eng; }};
 
 applyTheme();
 applySide();
