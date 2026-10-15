@@ -44,9 +44,9 @@ DEFAULTS = {
     # [{"base_url": "https://tfs.example.com/Collection", "project": "Platform", "repos": []}]
     'pr_sources': [],
     'pr_teams': [],                       # team names that count as yours; empty = every team you're on
-    # Workload report (team-wide, read-only). Scope (area paths or people) is set in the app.
+    # Reports view (team-wide, read-only). The team profile (area paths, people) is set in the app.
     'workload_types': [],                 # work item types to include; empty = same as "types"
-    'bug_types': ['Bug'],                 # types counted as bugs created in the window
+    'bug_types': ['Bug'],                 # types counted as bugs
     'high_priorities': [1, 2],            # ADO Priority values that count as high priority
     'escalation_priority': 1,             # raised to this priority from a lower one = an escalation
     'effort_fields': ['Microsoft.VSTS.Scheduling.RemainingWork', 'Microsoft.VSTS.Scheduling.Effort',
@@ -402,18 +402,18 @@ def sync_prs(cfg, known):
     return {'items': items, 'gone': gone, 'notes': notes}
 
 
-# ---------------------------------------------------------------- workload report
+# ---------------------------------------------------------------- reports dataset
 #
-# Read-only evidence for a capacity conversation, for a whole team rather than just you:
-#   priority changes   every Priority field change in the window, who made it, raised or lowered
-#   escalations        priority changes up to escalation_priority from a lower one
-#   sprint moves       Iteration Path changes in the window
-#   inventory          open items at a high priority, with remaining effort
-#   bugs               bugs created in the window
+# Read-only raw data for the Reports view, for a whole team rather than just you. The app computes
+# every report from this one pull, so new reports need no helper change.
+#   items       items in scope changed in the window, plus every open item in scope
+#   events      priority, iteration (sprint), assignment and state changes in the window, and creations
+#   iterations  sprint start and finish dates for the projects involved
 # Scope is area paths (UNDER) and/or people (Assigned To), sent by the app. Collections are limited
 # to ones already in ado-helper.json, so the page can never point your PAT at another server.
 
-PRIORITY, ITERATION = 'Microsoft.VSTS.Common.Priority', 'System.IterationPath'
+PRIORITY, ITERATION, ASSIGNED, STATE = ('Microsoft.VSTS.Common.Priority', 'System.IterationPath',
+                                        'System.AssignedTo', 'System.State')
 
 
 def collections(cfg):
@@ -441,6 +441,17 @@ def as_int(v):
         return None
 
 
+def email(v):
+    if isinstance(v, dict):
+        return (v.get('uniqueName') or '').lower()
+    v = str(v or '')
+    return v.split('<', 1)[1].rstrip('>').strip().lower() if '<' in v else ''
+
+
+def who(v):
+    return {'name': person(v), 'email': email(v)} if v else None
+
+
 def updates(ado, wid):
     out, skip = [], 0
     while True:
@@ -452,9 +463,9 @@ def updates(ado, wid):
         skip += 200
 
 
-def changes(ups, since):
-    """Priority and iteration changes in the window, from one item's update history."""
-    pri, its = [], []
+def events_of(wid, ups, since):
+    """Changes in the window from one item's update history."""
+    out = []
     for u in ups:
         f = u.get('fields') or {}
         when = ((f.get('System.ChangedDate') or {}).get('newValue')
@@ -462,16 +473,48 @@ def changes(ups, since):
         if not when or when[:4] == '9999' or when < since:
             continue
         by = person((f.get('System.ChangedBy') or {}).get('newValue')) or person(u.get('revisedBy'))
+        base = {'id': wid, 'date': when[:19], 'by': by}
+        if u.get('rev') == 1:
+            out.append(dict(base, kind='created', priority=as_int((f.get(PRIORITY) or {}).get('newValue')),
+                            iteration=(f.get(ITERATION) or {}).get('newValue'), to=who((f.get(ASSIGNED) or {}).get('newValue'))))
+            continue
         p = f.get(PRIORITY)
         if p and 'oldValue' in p and as_int(p.get('oldValue')) is not None and as_int(p.get('newValue')) is not None:
-            pri.append({'date': when, 'by': by, 'from': as_int(p['oldValue']), 'to': as_int(p['newValue'])})
+            out.append(dict(base, kind='priority', **{'from': as_int(p['oldValue']), 'to': as_int(p['newValue'])}))
         it = f.get(ITERATION)
         if it and it.get('oldValue') and it.get('newValue') and it['oldValue'] != it['newValue']:
-            its.append({'date': when, 'by': by, 'from': it['oldValue'], 'to': it['newValue']})
-    return pri, its
+            out.append(dict(base, kind='iteration', **{'from': it['oldValue'], 'to': it['newValue']}))
+        a = f.get(ASSIGNED)
+        if a and ('oldValue' in a or 'newValue' in a) and person(a.get('oldValue')) != person(a.get('newValue')):
+            out.append(dict(base, kind='assigned', **{'from': who(a.get('oldValue')), 'to': who(a.get('newValue'))}))
+        st = f.get(STATE)
+        if st and st.get('oldValue') and st.get('newValue') and st['oldValue'] != st['newValue']:
+            out.append(dict(base, kind='state', **{'from': st['oldValue'], 'to': st['newValue']}))
+    return out
 
 
-def workload(cfg, req):
+def iterations(ado, project):
+    """Sprint dates for one project, keyed by the iteration path work items use (Project\\Sprint)."""
+    out = {}
+    try:
+        res = ado.call('GET', 'wit/classificationnodes/Iterations', project=project, query={'$depth': 10})
+    except HelperError:
+        return out
+
+    def walk(node):
+        parts = [x for x in (node.get('path') or '').split('\\') if x]
+        if len(parts) >= 2 and parts[1].lower() == 'iteration':
+            parts = [parts[0]] + parts[2:]
+        attrs = node.get('attributes') or {}
+        if len(parts) > 1 and attrs.get('startDate') and attrs.get('finishDate'):
+            out['\\'.join(parts)] = {'start': day(attrs['startDate']), 'finish': day(attrs['finishDate'])}
+        for c in node.get('children') or []:
+            walk(c)
+    walk(res)
+    return out
+
+
+def dataset(cfg, req):
     days = max(7, min(180, as_int(req.get('days')) or 42))
     allowed = collections(cfg)
     base = str(req.get('base') or (allowed[0] if allowed else '')).rstrip('/')
@@ -480,68 +523,54 @@ def workload(cfg, req):
     areas = clean_list(req.get('areas'), 25)
     people = clean_list(req.get('people'), 60)
     if not areas and not people:
-        raise HelperError('Add at least one area path or person to scope the report to your team.')
+        raise HelperError('Add at least one area path or person to your team profile.')
     ado = Ado(cfg, base)
     types = wiql_list(cfg.get('workload_types') or cfg['types'])
     done = wiql_list(cfg['closed_states'] + cfg['removed_states'])
     scope = ' OR '.join([f'[System.AreaPath] UNDER {wiql_list([a])}' for a in areas]
                         + ([f'[System.AssignedTo] IN ({wiql_list(people)})'] if people else []))
-    high = [int(p) for p in cfg.get('high_priorities') or [1, 2]]
-    top = int(cfg.get('escalation_priority', 1))
     since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%S')
 
     changed = ado.wiql(f'[System.WorkItemType] IN ({types}) AND ({scope}) AND [System.ChangedDate] >= @Today - {days}')
-    open_high = ado.wiql(f'[System.WorkItemType] IN ({types}) AND ({scope}) AND [System.State] NOT IN ({done}) '
-                         f'AND [{PRIORITY}] IN ({", ".join(str(p) for p in high)})')
-    bug_ids = ado.wiql(f'[System.WorkItemType] IN ({wiql_list(cfg.get("bug_types") or ["Bug"])}) AND ({scope}) '
-                       f'AND [System.CreatedDate] >= @Today - {days}')
+    open_ids = ado.wiql(f'[System.WorkItemType] IN ({types}) AND ({scope}) AND [System.State] NOT IN ({done})')
     cap = int(cfg.get('workload_max_items', 1500))
-    truncated = len(changed) > cap
-    changed = changed[:cap]
-    info = ado.details(list(dict.fromkeys(changed + open_high + bug_ids)))
+    truncated = len(changed) > cap or len(open_ids) > 3 * cap
+    changed, open_ids = changed[:cap], open_ids[:3 * cap]
+    ids = list(dict.fromkeys(changed + open_ids))
+    info = ado.details(ids)
 
     with ThreadPoolExecutor(max_workers=6) as pool:
-        hist = dict(zip(changed, pool.map(lambda i: changes(updates(ado, i), since), changed)))
+        evs = [e for chunk in pool.map(lambda i: events_of(i, updates(ado, i), since), changed) for e in chunk]
+    evs.sort(key=lambda e: e['date'])
 
-    def base_row(i):
-        w = info.get(i) or {'id': i, 'fields': {}}
-        s = shape(w, ado.base)
-        f = w.get('fields', {})
-        s.update(created=day(f.get('System.CreatedDate')), createdBy=person(f.get('System.CreatedBy')),
-                 iteration=f.get(ITERATION, ''), area=f.get('System.AreaPath', ''))
-        return s
-
-    pri_rows, moves = [], []
-    for i in changed:
-        pri, its = hist.get(i, ([], []))
-        if not pri and not its:
+    items, with_history = [], set(changed)
+    for i in ids:
+        w = info.get(i)
+        if not w:
             continue
-        b = base_row(i)
-        for c in pri:
-            pri_rows.append(dict(id=i, title=b['title'], type=b['type'], state=b['state'], created=b['created'],
-                                 url=b['url'], date=c['date'][:10], by=c['by'], **{'from': c['from'], 'to': c['to']},
-                                 raised=c['to'] < c['from'], escalation=c['to'] == top and c['from'] > top))
-        for c in its:
-            moves.append(dict(id=i, title=b['title'], type=b['type'], url=b['url'], date=c['date'][:10], by=c['by'],
-                              **{'from': c['from'], 'to': c['to']}))
-    pri_rows.sort(key=lambda r: r['date'], reverse=True)
-    moves.sort(key=lambda r: r['date'], reverse=True)
-
-    inventory = []
-    for i in open_high:
-        b = base_row(i)
-        f = (info.get(i) or {}).get('fields', {})
+        f = w.get('fields', {})
+        s = shape(w, ado.base)
         field = next((k for k in cfg.get('effort_fields') or [] if f.get(k) is not None), None)
-        b['effort'] = f.get(field) if field else None
-        b['effortField'] = field.split('.')[-1] if field else ''
-        inventory.append(b)
-    inventory.sort(key=lambda r: (r['priority'] or 9, r['created'] or ''))
-    bugs = sorted((base_row(i) for i in bug_ids), key=lambda r: r['created'] or '', reverse=True)
+        s.update(assignedEmail=email(f.get(ASSIGNED)), area=f.get('System.AreaPath', ''), iteration=f.get(ITERATION, ''),
+                 created=day(f.get('System.CreatedDate')), createdBy=person(f.get('System.CreatedBy')),
+                 closed=day(f.get('Microsoft.VSTS.Common.ClosedDate')), changed=day(f.get('System.ChangedDate')),
+                 effort=f.get(field) if field else None, effortField=field.split('.')[-1] if field else '',
+                 tags=f.get('System.Tags', ''), history=i in with_history)
+        items.append(s)
 
-    return {'days': days, 'since': since[:10], 'base': ado.base, 'areas': areas, 'people': people,
-            'highPriorities': high, 'escalationPriority': top, 'truncated': truncated,
-            'scanned': len(changed), 'priorityChanges': pri_rows, 'sprintMoves': moves,
-            'inventory': inventory, 'bugs': bugs, 'generatedAt': datetime.now(timezone.utc).isoformat()}
+    projects = sorted({it['project'] for it in items if it['project']})
+    its = {}
+    for pr in projects[:10]:
+        its.update(iterations(ado, pr))
+
+    return {'schema': 1, 'days': days, 'since': since[:10], 'base': ado.base, 'areas': areas, 'people': people,
+            'truncated': truncated, 'scanned': len(changed),
+            'config': {'highPriorities': [int(p) for p in cfg.get('high_priorities') or [1, 2]],
+                       'escalationPriority': int(cfg.get('escalation_priority', 1)),
+                       'bugTypes': cfg.get('bug_types') or ['Bug'],
+                       'closedStates': cfg['closed_states'], 'removedStates': cfg['removed_states']},
+            'items': items, 'events': evs, 'iterations': its,
+            'generatedAt': datetime.now(timezone.utc).isoformat()}
 
 
 # ---------------------------------------------------------------- local server
@@ -599,7 +628,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path.split('?')[0] == '/health':
             return self.send_json(200, {'ok': True, 'version': VERSION, 'base': self.cfg['base_url'], 'types': self.cfg['types'],
-                                        'collections': collections(self.cfg), 'workload': True,
+                                        'collections': collections(self.cfg), 'reports': 1,
                                         'prSources': [f'{s["base_url"]} / {s["project"]}' for s in self.cfg.get('pr_sources') or []]})
         self.send_json(404, {'error': 'Not found'})
 
@@ -607,13 +636,13 @@ class Handler(BaseHTTPRequestHandler):
         if not self.guard():
             return
         route = self.path.split('?')[0]
-        if route not in ('/sync', '/workload'):
+        if route not in ('/sync', '/dataset'):
             return self.send_json(404, {'error': 'Not found'})
         try:
             n = min(int(self.headers.get('Content-Length') or 0), 1_000_000)
             body = json.loads(self.rfile.read(n) or b'{}')
-            if route == '/workload':
-                return self.send_json(200, workload(self.cfg, body))
+            if route == '/dataset':
+                return self.send_json(200, dataset(self.cfg, body))
             known = [int(x) for x in body.get('known', []) if str(x).isdigit()][:5000]
             known_prs = [str(x)[:500] for x in body.get('knownPrs', []) if isinstance(x, str)][:2000]
             self.send_json(200, sync(self.cfg, known, known_prs))
