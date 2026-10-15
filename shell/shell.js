@@ -44,10 +44,12 @@
   /* ---------- rail ---------- */
   const THEME_ICON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="6.5"/><path d="M10 3.5a6.5 6.5 0 0 0 0 13z" fill="currentColor"/></svg>';
   const MARK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6.5" fill="currentColor"/><g fill="var(--on-accent)"><rect x="5" y="5" width="6.2" height="6.2" rx="1.8"/><rect x="12.8" y="5" width="6.2" height="6.2" rx="1.8" opacity=".38"/><rect x="5" y="12.8" width="6.2" height="6.2" rx="1.8" opacity=".38"/><rect x="12.8" y="12.8" width="6.2" height="6.2" rx="1.8" opacity=".38"/></g></svg>';
+  const INSTALL_ICON = svg('<rect x="3" y="3.5" width="14" height="10" rx="1.8"/><path d="M7 17h6M10 6.5v4.5M8 9l2 2 2-2"/>');
   function renderRail() {
     $('#rail').innerHTML = `<a class="mark" href="#/" aria-label="Workshop">${MARK}</a>`
       + APPS.map((a, i) => `<a class="app-btn" href="#/${a.id}" data-app="${a.id}" title="${a.label} (Alt+${i + 1})"><span aria-hidden="true">${svg(a.icon)}</span><span class="lbl">${a.label}</span></a>`).join('')
-      + `<span class="grow"></span><button class="app-btn" id="themeBtn" aria-label="Theme" title="Theme">${THEME_ICON}</button>`;
+      + `<span class="grow"></span><button class="app-btn" id="installBtn" hidden aria-label="Install Workshop as a desktop app" title="Install as a desktop app">${INSTALL_ICON}<span class="lbl">Install</span></button>`
+      + `<button class="app-btn" id="themeBtn" aria-label="Theme" title="Theme">${THEME_ICON}</button>`;
   }
   function markRail() {
     document.querySelectorAll('.app-btn[data-app]').forEach(b => {
@@ -144,6 +146,21 @@
     el.classList.add('show');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), ms);
   }
+
+  /* ---------- install as a desktop app ----------
+     Chrome and Edge offer an install prompt when the site qualifies (manifest + service worker).
+     We keep it and show an Install button on the rail; once installed, Workshop opens in its own
+     window with a dock or taskbar icon, and the button goes away. */
+  let installPrompt = null;
+  const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  function setInstall() { const b = $('#installBtn'); if (b) b.hidden = !installPrompt || standalone(); }
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; setInstall(); });
+  window.addEventListener('appinstalled', () => { installPrompt = null; setInstall(); toast('Workshop is installed. Open it from your dock, taskbar or Start menu.'); });
+  document.addEventListener('click', async e => {
+    if (!e.target.closest('#installBtn') || !installPrompt) return;
+    const p = installPrompt; installPrompt = null; setInstall();
+    try { await p.prompt(); await p.userChoice; } catch (err) { /* each prompt works once; the browser offers a fresh one later */ }
+  });
 
   window.EmHub = {apps: APPS, go, toast};
 

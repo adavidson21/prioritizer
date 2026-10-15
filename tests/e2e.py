@@ -92,7 +92,7 @@ def main():
         check('opens on Prioritizer at the plain address', pg.url == HUB + '/' and pg.title() == 'Prioritizer · Workshop')
         frame = next(f for f in pg.frames if f.url.endswith('/prioritizer/'))
         frame.on('pageerror', lambda e: errors.append(str(e)))
-        check('Prioritizer hides its theme button in the hub', frame.evaluate("document.getElementById('themeBtn').hidden"))
+        check('Prioritizer hides its theme button in the hub', not frame.locator('#themeBtn').is_visible())
         add_ado_task(frame, 'a1', 'Fix login', '123', 'Bug')
         check('no stage chips before the Dashboard connects', frame.locator('.chip.eng').count() == 0)
 
@@ -128,7 +128,7 @@ def main():
         sp = b.new_page(); sp.route('**/fonts.g*/**', lambda r: r.abort())
         sp.on('pageerror', lambda e: errors.append(str(e)))
         sp.goto(HUB + '/prioritizer/'); sp.wait_for_timeout(600)
-        check('Prioritizer still works on its own', not sp.evaluate("document.getElementById('themeBtn').hidden") and sp.locator('#snav .sitem').count() == 6)
+        check('Prioritizer still works on its own', sp.locator('#themeBtn').is_visible() and sp.locator('#snav .sitem').count() == 6)
 
         check('no page errors', not errors)
         if errors: print('  ' + '\n  '.join(errors))

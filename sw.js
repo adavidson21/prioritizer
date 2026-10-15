@@ -1,7 +1,7 @@
 /* Workshop service worker: lets the hub install as its own window and open offline.
    Bump CACHE when shipping a change so open windows get the "New version" toast.
    Add new files to SHELL so they work offline. */
-const CACHE = 'emhub-3.1.0';
+const CACHE = 'emhub-3.2.0';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './shell/shell.css', './shell/shell.js', './shell/dashboard.js',
