@@ -1,8 +1,11 @@
 /*
-  Shared themes: the single source of truth for Prioritizer and the eng-agents dashboard.
+  Shared themes, the single source of truth for the EM Hub shell, Prioritizer, and the
+  eng-agents dashboard.
 
-  Edit themes here only. The eng-agents dashboard copies this file into its page with
-  `node core/scripts/dashboard/sync-themes.mjs` and fails its check when the copy drifts.
+  Edit themes here only. When you add or change one, also update THEMES and SWATCH in
+  shared/theme.js (`node tests/check-themes.mjs` fails if they disagree). The eng-agents
+  dashboard copies this file into its page with `node core/scripts/dashboard/sync-themes.mjs`
+  and fails its check when the copy drifts.
 
   Each theme sets eight base colors. Everything else is derived below, so a new theme only
   needs these eight. Keep text at WCAG AA (4.5:1) for ink, muted, accent, danger, and warn

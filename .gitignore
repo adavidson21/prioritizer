@@ -1,2 +1,5 @@
-ado-helper/ado-helper.json
-ado-helper/ado-helper.log
+__pycache__/
+*.pyc
+prioritizer/ado-helper/ado-helper.json
+prioritizer/ado-helper/ado-helper.log
+.DS_Store

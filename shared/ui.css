@@ -1,0 +1,52 @@
+/* Shared UI pieces for the shell and its apps: buttons, icon buttons, links, menus, theme
+   swatches, toast, tooltip, and the centered card (.engcard) for setup and empty states.
+   Load after themes.css and before an app's own styles. */
+*{box-sizing:border-box}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+svg{display:block}
+.mono,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+kbd{font-family:var(--mono);font-size:.72rem;padding:.02rem .32rem;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;color:var(--muted);background:var(--surface);line-height:1.3}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;gap:.4rem;min-height:2rem;padding:.35rem .8rem;border-radius:8px;font-size:.86rem;font-weight:500;border:1px solid var(--line);background:var(--surface);white-space:nowrap;color:var(--ink)}
+.btn:hover{background:var(--hover)}
+.btn svg{width:14px;height:14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:color-mix(in srgb,var(--accent) 88%,var(--ink))}
+.btn.primary kbd{background:transparent;color:var(--on-accent);border-color:color-mix(in srgb,var(--on-accent) 40%,transparent)}
+.btn.danger{background:var(--danger);border-color:var(--danger);color:var(--surface)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--hover)}
+.btn.text-danger{border-color:transparent;background:transparent;color:var(--danger)}
+.btn.text-danger:hover{background:var(--danger-soft)}
+.btn:disabled{opacity:.5;cursor:default}
+.ibtn{position:relative;width:2rem;height:2rem;min-width:24px;min-height:24px;border-radius:8px;display:grid;place-items:center;color:var(--muted);flex:none}
+.ibtn svg{width:17px;height:17px}
+.ibtn:hover{background:var(--hover);color:var(--ink)}
+.lnk{font-size:.84rem;color:var(--accent);font-weight:500;border-radius:6px;padding:.1rem .3rem;white-space:nowrap}
+.lnk:hover{background:var(--accent-soft);color:var(--ink)}
+.engcard{max-width:36rem;margin:2.5rem auto;padding:1.4rem 1.5rem;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow);font-size:.9rem;color:var(--muted)}
+.engcard h2{margin:0 0 .4rem;font-size:1.05rem;font-weight:600;color:var(--ink)}
+.engcard ol{margin:.6rem 0 0;padding-left:1.2rem;display:grid;gap:.45rem}
+.engcard code{font-family:var(--mono);font-size:.8rem;color:var(--ink);background:var(--hover);padding:.05rem .3rem;border-radius:5px;word-break:break-all}
+.engcard .acts{display:flex;align-items:center;gap:.5rem;margin-top:1.1rem;flex-wrap:wrap}
+.engcard .fld{display:flex;align-items:center;gap:.5rem}
+.engcard input{width:6.5rem;min-height:2rem;padding:.3rem .5rem;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.menu{position:fixed;z-index:46;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-lg);padding:.3rem;min-width:11rem;animation:pop .12s ease}
+.menu button{display:flex;align-items:center;gap:.55rem;width:100%;text-align:left;padding:.45rem .65rem;border-radius:7px;font-size:.88rem;min-height:28px}
+.menu button:hover,.menu button:focus-visible{background:var(--hover);outline:none}
+.menu button.on{font-weight:600}
+.menu b{font-weight:600}
+.menu .danger{color:var(--danger)}
+.menu .sep{height:1px;background:var(--line);margin:.25rem .2rem}
+.sw{width:16px;height:16px;border-radius:50%;flex:none;border:1px solid var(--line);position:relative;overflow:hidden}
+.sw i{position:absolute;right:0;bottom:0;width:50%;height:50%;border-top-left-radius:100%}
+.toast{position:fixed;left:50%;bottom:1.5rem;z-index:60;transform:translate(-50%,1rem);opacity:0;pointer-events:none;background:var(--ink);color:var(--surface);padding:.55rem .6rem .55rem 1rem;border-radius:10px;display:flex;gap:.5rem;align-items:center;font-size:.88rem;box-shadow:var(--shadow-lg);transition:opacity .2s,transform .2s;max-width:calc(100vw - 2rem)}
+.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast span{margin-right:.4rem}
+.toast button{color:var(--surface);font-weight:600;padding:.2rem .5rem;border-radius:6px;text-decoration:underline;text-underline-offset:2px;min-height:24px}
+.toast button:hover{background:color-mix(in srgb,var(--surface) 16%,transparent)}
+.tip{position:fixed;z-index:70;max-width:16rem;background:var(--ink);color:var(--surface);font-size:.76rem;line-height:1.35;padding:.38rem .6rem;border-radius:7px;pointer-events:none;opacity:0;transition:opacity .12s;box-shadow:var(--shadow)}
+.tip.show{opacity:1}
+@keyframes pop{from{opacity:0;transform:scale(.98) translateY(4px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
