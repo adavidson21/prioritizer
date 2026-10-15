@@ -17,7 +17,7 @@ The Dashboard page needs the live dashboard running on this computer, and allowe
 
 1. In `~/.config/eng-agents/config.json` (`%USERPROFILE%\.config\eng-agents\config.json` on Windows), add:
    ```json
-   "dashboard": { "shellOrigins": ["https://em.alexisdavidson.org"] }
+   "dashboard": { "shellOrigins": ["https://adavidson21.github.io"] }
    ```
 2. Run `/dashboard` in opencode in your workspace. If it was already running, close its minimized window first so it reads the new setting.
 3. Open **Dashboard** in the hub and click Connect. If the browser asks to allow access to apps on this device, choose Allow.
@@ -83,4 +83,4 @@ python tests/e2e.py              the hub in headless Chromium against a mock das
 
 GitHub Pages serves the repo root. When you ship a change, bump `CACHE` in `sw.js` so open windows offer a "New version" reload.
 
-The site is meant to live at `em.alexisdavidson.org`: point a DNS CNAME at `adavidson21.github.io` and set the custom domain in the repo's Pages settings. If you use a different address, change it in `shellOrigins` (above) and in `allowed_origins` in `prioritizer/ado-helper/ado_helper.py` (or in your `ado-helper.json`).
+The hub lives at https://adavidson21.github.io/prioritizer/ (Prioritizer on its own: `/prioritizer/prioritizer/`). It is the same address Prioritizer used before, so tasks saved in the browser carry over. If the address changes, update `shellOrigins` (above) and `allowed_origins` in `prioritizer/ado-helper/ado_helper.py` (or your `ado-helper.json`); browser storage does not move between addresses, so export from the old one and import on the new one.

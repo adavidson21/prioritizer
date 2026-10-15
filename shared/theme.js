@@ -15,7 +15,11 @@
   const listeners = [];
 
   function pref() {
-    try { const v = localStorage.getItem(KEY); return v in THEMES ? v : 'system'; } catch (e) { return 'system'; }
+    try {
+      // Before the hub, Prioritizer kept the choice under prioritizer.theme.
+      const v = localStorage.getItem(KEY) || localStorage.getItem('prioritizer.theme');
+      return v in THEMES ? v : 'system';
+    } catch (e) { return 'system'; }
   }
   // 'system' becomes Slate or Graphite.
   function resolve(p) { return p === 'system' || !(p in SWATCH) ? (dark.matches ? 'graphite' : 'slate') : p; }

@@ -31,6 +31,13 @@
   function onChange(fn) { listeners.push(fn); }
   window.addEventListener('storage', e => { if (e.key === KEY) listeners.forEach(fn => fn(settings())); });
 
+  // Before the hub, Prioritizer kept these in prioritizer.ui as {eng: {on, port}}. Copy them over once,
+  // now, before Prioritizer next saves its UI state without them.
+  try {
+    const old = !localStorage.getItem(KEY) && (JSON.parse(localStorage.getItem('prioritizer.ui') || '{}') || {}).eng;
+    if (old) localStorage.setItem(KEY, JSON.stringify({on: !!old.on, port: validPort(old.port) ? old.port : DEFAULT_PORT}));
+  } catch (e) { /* nothing to carry over */ }
+
   const base = () => `http://127.0.0.1:${settings().port}`;
 
   async function request(path, body) {
