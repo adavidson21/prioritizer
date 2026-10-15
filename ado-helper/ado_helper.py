@@ -16,16 +16,17 @@ Options:  --setup     re-run the setup questions
 """
 import base64
 import json
+from concurrent.futures import ThreadPoolExecutor
 import os
 import ssl
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, 'ado-helper.json')
 DEFAULTS = {
@@ -43,6 +44,14 @@ DEFAULTS = {
     # [{"base_url": "https://tfs.example.com/Collection", "project": "Platform", "repos": []}]
     'pr_sources': [],
     'pr_teams': [],                       # team names that count as yours; empty = every team you're on
+    # Workload report (team-wide, read-only). Scope (area paths or people) is set in the app.
+    'workload_types': [],                 # work item types to include; empty = same as "types"
+    'bug_types': ['Bug'],                 # types counted as bugs created in the window
+    'high_priorities': [1, 2],            # ADO Priority values that count as high priority
+    'escalation_priority': 1,             # raised to this priority from a lower one = an escalation
+    'effort_fields': ['Microsoft.VSTS.Scheduling.RemainingWork', 'Microsoft.VSTS.Scheduling.Effort',
+                      'Microsoft.VSTS.Scheduling.StoryPoints', 'Microsoft.VSTS.Scheduling.OriginalEstimate'],
+    'workload_max_items': 1500,           # history is read for at most this many changed items
 }
 DEV_ORIGINS = ('http://localhost', 'http://127.0.0.1')  # any port, for testing a local copy of the app
 LOCAL_HOSTS = ('127.0.0.1', 'localhost')
@@ -393,6 +402,148 @@ def sync_prs(cfg, known):
     return {'items': items, 'gone': gone, 'notes': notes}
 
 
+# ---------------------------------------------------------------- workload report
+#
+# Read-only evidence for a capacity conversation, for a whole team rather than just you:
+#   priority changes   every Priority field change in the window, who made it, raised or lowered
+#   escalations        priority changes up to escalation_priority from a lower one
+#   sprint moves       Iteration Path changes in the window
+#   inventory          open items at a high priority, with remaining effort
+#   bugs               bugs created in the window
+# Scope is area paths (UNDER) and/or people (Assigned To), sent by the app. Collections are limited
+# to ones already in ado-helper.json, so the page can never point your PAT at another server.
+
+PRIORITY, ITERATION = 'Microsoft.VSTS.Common.Priority', 'System.IterationPath'
+
+
+def collections(cfg):
+    out = [cfg['base_url']] if cfg['base_url'] else []
+    for s in cfg.get('pr_sources') or []:
+        b = s['base_url'].rstrip('/')
+        if b not in out:
+            out.append(b)
+    return out
+
+
+def clean_list(values, limit, size=300):
+    out = []
+    for v in values or []:
+        v = str(v).strip()[:size]
+        if v and v not in out:
+            out.append(v)
+    return out[:limit]
+
+
+def as_int(v):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def updates(ado, wid):
+    out, skip = [], 0
+    while True:
+        res = ado.call('GET', f'wit/workItems/{wid}/updates', query={'$top': 200, '$skip': skip})
+        page = res.get('value') or []
+        out += page
+        if len(page) < 200 or skip > 5000:
+            return out
+        skip += 200
+
+
+def changes(ups, since):
+    """Priority and iteration changes in the window, from one item's update history."""
+    pri, its = [], []
+    for u in ups:
+        f = u.get('fields') or {}
+        when = ((f.get('System.ChangedDate') or {}).get('newValue')
+                or (f.get('System.AuthorizedDate') or {}).get('newValue') or u.get('revisedDate') or '')
+        if not when or when[:4] == '9999' or when < since:
+            continue
+        by = person((f.get('System.ChangedBy') or {}).get('newValue')) or person(u.get('revisedBy'))
+        p = f.get(PRIORITY)
+        if p and 'oldValue' in p and as_int(p.get('oldValue')) is not None and as_int(p.get('newValue')) is not None:
+            pri.append({'date': when, 'by': by, 'from': as_int(p['oldValue']), 'to': as_int(p['newValue'])})
+        it = f.get(ITERATION)
+        if it and it.get('oldValue') and it.get('newValue') and it['oldValue'] != it['newValue']:
+            its.append({'date': when, 'by': by, 'from': it['oldValue'], 'to': it['newValue']})
+    return pri, its
+
+
+def workload(cfg, req):
+    days = max(7, min(180, as_int(req.get('days')) or 42))
+    allowed = collections(cfg)
+    base = str(req.get('base') or (allowed[0] if allowed else '')).rstrip('/')
+    if base not in allowed:
+        raise HelperError('That collection is not in ado-helper.json. Add it with --setup or --add-pr-source first.')
+    areas = clean_list(req.get('areas'), 25)
+    people = clean_list(req.get('people'), 60)
+    if not areas and not people:
+        raise HelperError('Add at least one area path or person to scope the report to your team.')
+    ado = Ado(cfg, base)
+    types = wiql_list(cfg.get('workload_types') or cfg['types'])
+    done = wiql_list(cfg['closed_states'] + cfg['removed_states'])
+    scope = ' OR '.join([f'[System.AreaPath] UNDER {wiql_list([a])}' for a in areas]
+                        + ([f'[System.AssignedTo] IN ({wiql_list(people)})'] if people else []))
+    high = [int(p) for p in cfg.get('high_priorities') or [1, 2]]
+    top = int(cfg.get('escalation_priority', 1))
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%S')
+
+    changed = ado.wiql(f'[System.WorkItemType] IN ({types}) AND ({scope}) AND [System.ChangedDate] >= @Today - {days}')
+    open_high = ado.wiql(f'[System.WorkItemType] IN ({types}) AND ({scope}) AND [System.State] NOT IN ({done}) '
+                         f'AND [{PRIORITY}] IN ({", ".join(str(p) for p in high)})')
+    bug_ids = ado.wiql(f'[System.WorkItemType] IN ({wiql_list(cfg.get("bug_types") or ["Bug"])}) AND ({scope}) '
+                       f'AND [System.CreatedDate] >= @Today - {days}')
+    cap = int(cfg.get('workload_max_items', 1500))
+    truncated = len(changed) > cap
+    changed = changed[:cap]
+    info = ado.details(list(dict.fromkeys(changed + open_high + bug_ids)))
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        hist = dict(zip(changed, pool.map(lambda i: changes(updates(ado, i), since), changed)))
+
+    def base_row(i):
+        w = info.get(i) or {'id': i, 'fields': {}}
+        s = shape(w, ado.base)
+        f = w.get('fields', {})
+        s.update(created=day(f.get('System.CreatedDate')), createdBy=person(f.get('System.CreatedBy')),
+                 iteration=f.get(ITERATION, ''), area=f.get('System.AreaPath', ''))
+        return s
+
+    pri_rows, moves = [], []
+    for i in changed:
+        pri, its = hist.get(i, ([], []))
+        if not pri and not its:
+            continue
+        b = base_row(i)
+        for c in pri:
+            pri_rows.append(dict(id=i, title=b['title'], type=b['type'], state=b['state'], created=b['created'],
+                                 url=b['url'], date=c['date'][:10], by=c['by'], **{'from': c['from'], 'to': c['to']},
+                                 raised=c['to'] < c['from'], escalation=c['to'] == top and c['from'] > top))
+        for c in its:
+            moves.append(dict(id=i, title=b['title'], type=b['type'], url=b['url'], date=c['date'][:10], by=c['by'],
+                              **{'from': c['from'], 'to': c['to']}))
+    pri_rows.sort(key=lambda r: r['date'], reverse=True)
+    moves.sort(key=lambda r: r['date'], reverse=True)
+
+    inventory = []
+    for i in open_high:
+        b = base_row(i)
+        f = (info.get(i) or {}).get('fields', {})
+        field = next((k for k in cfg.get('effort_fields') or [] if f.get(k) is not None), None)
+        b['effort'] = f.get(field) if field else None
+        b['effortField'] = field.split('.')[-1] if field else ''
+        inventory.append(b)
+    inventory.sort(key=lambda r: (r['priority'] or 9, r['created'] or ''))
+    bugs = sorted((base_row(i) for i in bug_ids), key=lambda r: r['created'] or '', reverse=True)
+
+    return {'days': days, 'since': since[:10], 'base': ado.base, 'areas': areas, 'people': people,
+            'highPriorities': high, 'escalationPriority': top, 'truncated': truncated,
+            'scanned': len(changed), 'priorityChanges': pri_rows, 'sprintMoves': moves,
+            'inventory': inventory, 'bugs': bugs, 'generatedAt': datetime.now(timezone.utc).isoformat()}
+
+
 # ---------------------------------------------------------------- local server
 
 class Handler(BaseHTTPRequestHandler):
@@ -448,17 +599,21 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path.split('?')[0] == '/health':
             return self.send_json(200, {'ok': True, 'version': VERSION, 'base': self.cfg['base_url'], 'types': self.cfg['types'],
+                                        'collections': collections(self.cfg), 'workload': True,
                                         'prSources': [f'{s["base_url"]} / {s["project"]}' for s in self.cfg.get('pr_sources') or []]})
         self.send_json(404, {'error': 'Not found'})
 
     def do_POST(self):
         if not self.guard():
             return
-        if self.path.split('?')[0] != '/sync':
+        route = self.path.split('?')[0]
+        if route not in ('/sync', '/workload'):
             return self.send_json(404, {'error': 'Not found'})
         try:
             n = min(int(self.headers.get('Content-Length') or 0), 1_000_000)
             body = json.loads(self.rfile.read(n) or b'{}')
+            if route == '/workload':
+                return self.send_json(200, workload(self.cfg, body))
             known = [int(x) for x in body.get('known', []) if str(x).isdigit()][:5000]
             known_prs = [str(x)[:500] for x in body.get('knownPrs', []) if isinstance(x, str)][:2000]
             self.send_json(200, sync(self.cfg, known, known_prs))

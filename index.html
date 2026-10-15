@@ -203,6 +203,22 @@ button.chip.warn:hover{color:var(--danger);background:color-mix(in srgb,var(--da
 #adoBtn[data-ado=error] .mk-x{display:inline}
 #adoBtn[data-ado=busy] svg{animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.sheet.wide{width:min(48rem,100%)}
+.wl-form{display:grid;grid-template-columns:1fr 1fr;gap:.6rem .9rem;margin-top:.7rem}
+.wl-form label{display:grid;gap:.25rem;font-size:.8rem;color:var(--muted);text-align:left;font-weight:500}
+.wl-form .full{grid-column:1/-1}
+.wl-form label[hidden]{display:none}
+.wl-form textarea,.wl-form select{width:100%;border:1px solid var(--line);border-radius:8px;padding:.45rem .6rem;background:var(--surface);color:var(--ink);font:inherit;font-size:.86rem;outline:0}
+.wl-form textarea{min-height:4.6rem;resize:vertical;font-family:var(--mono);font-size:.8rem}
+.wl-form textarea:focus,.wl-form select:focus{border-color:var(--accent)}
+.wl-form input[type=number]{width:6rem}
+.wl-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr));gap:.5rem;margin-top:.9rem}
+.wl-kpi{border:1px solid var(--line);border-radius:10px;padding:.6rem .7rem;text-align:left}
+.wl-kpi b{display:block;font-family:var(--mono);font-size:1.4rem;line-height:1.2;font-weight:500;color:var(--ink)}
+.wl-kpi span{font-size:.76rem;color:var(--muted)}
+.wl-who{margin:.8rem 0 0;font-size:.84rem;color:var(--muted);text-align:left}
+.wl-who b{color:var(--ink);font-weight:500}
+@media (max-width:560px){.wl-form{grid-template-columns:1fr}}
 .steps{margin:.4rem 0 .2rem;padding-left:1.2rem;font-size:.88rem;color:var(--muted)}
 .steps li{margin:.3rem 0}
 .steps code{font-family:var(--mono);font-size:.8rem;color:var(--ink);background:var(--hover);padding:0 .25rem;border-radius:4px}
@@ -2678,7 +2694,7 @@ function onAdoClick(btn){
   const ago = ui.ado.last ? fmtMD(new Date(ui.ado.last)) + ' ' + new Date(ui.ado.last).toLocaleTimeString(undefined, {hour: 'numeric', minute: '2-digit'}) : 'never';
   popMenu(`<div class="who"><b>Azure DevOps</b>${ui.ado.error ? esc(ui.ado.error) : `Last sync ${esc(ago)}`}</div>
     ${state.ado.pending.length ? `<button data-a="review">Review ${plural(state.ado.pending.length, 'new item')}</button>` : ''}
-    <button data-a="now">Sync now</button><button data-a="show">Show ADO list</button><button data-a="setup">Settings</button>`, btn)
+    <button data-a="now">Sync now</button><button data-a="show">Show ADO list</button><button data-a="workload">Workload report</button><button data-a="setup">Settings</button>`, btn)
     .addEventListener('click', e => {
       const b = e.target.closest('[data-a]'); if (!b) return;
       closeMenu();
@@ -2686,7 +2702,167 @@ function onAdoClick(btn){
       if (b.dataset.a === 'now') adoSync(true);
       if (b.dataset.a === 'show'){ adoList(); setScope(state.ado.listId); }
       if (b.dataset.a === 'setup') adoSetup();
+      if (b.dataset.a === 'workload') workloadOpen();
     });
+}
+/* ---------- workload report: team-wide evidence for a capacity conversation ----------
+   The ADO helper reads priority changes, escalations, sprint moves, open high-priority items and new bugs
+   for your team (area paths and/or people) over a window. Read-only. The export is the Workload tracker
+   workbook pre-filled from ADO, with blank tabs for what ADO can't see (Teams, out-of-scope work, risks). */
+ui.wl = Object.assign({days: 42, base: '', areas: '', people: ''}, ui.wl || {});
+let wlData = null;
+const wlLines = v => String(v || '').split(/\r?\n|;/).map(x => x.trim()).filter(Boolean);
+function wlStats(d){
+  const weeks = d.days / 7, pc = d.priorityChanges, esc = pc.filter(c => c.escalation);
+  const by = new Map(); pc.forEach(c => by.set(c.by || 'Unknown', (by.get(c.by || 'Unknown') || 0) + 1));
+  const hrs = d.inventory.filter(i => i.effortField === 'RemainingWork');
+  const daysBefore = esc.map(c => c.created ? Math.round((Date.parse(c.date) - Date.parse(c.created)) / 864e5) : null).filter(n => n != null && n >= 0);
+  return {weeks, changes: pc.length, perWeek: pc.length / weeks, escalations: esc.length, moves: d.sprintMoves.length,
+    open: d.inventory.length, hours: hrs.reduce((a, i) => a + (+i.effort || 0), 0), noHours: d.inventory.length - hrs.length,
+    bugs: d.bugs.length, avgDays: daysBefore.length ? daysBefore.reduce((a, b) => a + b, 0) / daysBefore.length : 0,
+    top: [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)};
+}
+function wlResults(d){
+  const s = wlStats(d), one = n => Math.round(n * 10) / 10;
+  const k = (n, l) => `<div class="wl-kpi"><b>${n}</b><span>${l}</span></div>`;
+  return `<div class="wl-kpis">
+      ${k(s.changes, 'priority changes')}${k(one(s.perWeek), 'changes per week')}${k(s.escalations, `escalated to P${d.escalationPriority}`)}
+      ${k(s.moves, 'sprint moves')}${k(s.open, `open at P${d.highPriorities.join('/P')}`)}${k(Math.round(s.hours), 'hours remaining on those')}
+      ${k(s.bugs, 'bugs created')}${k(Math.round(s.avgDays), 'avg days before escalation')}</div>
+    ${s.top.length ? `<p class="wl-who">Most priority changes by: ${s.top.map(([n, c]) => `<b>${esc(n)}</b> ${c}`).join(', ')}</p>` : ''}
+    ${s.noHours ? `<p class="hint" style="margin-top:.5rem">${plural(s.noHours, 'open item')} at high priority ${s.noHours === 1 ? 'has' : 'have'} no Remaining Work estimate, so the hours undercount demand.</p>` : ''}
+    ${d.truncated ? `<p class="hint">Only the ${d.scanned} most recently changed items were checked for history. Narrow the scope or window for a full count.</p>` : ''}`;
+}
+async function workloadOpen(){
+  let cols = [];
+  showModal(`<div class="sheet wide" role="dialog" aria-modal="true" aria-label="Workload report"><h3>Workload report</h3>
+    <p>Pulls priority changes, escalations, sprint moves, open high-priority work and new bugs for your team from ADO, then exports the Workload tracker to Excel with those tabs filled in. Read-only. Add Teams evidence by hand in the Priority Changes tab with Source set to Teams.</p>
+    <div class="wl-form">
+      <label class="full" id="wlColWrap" hidden>Collection<select id="wlCol"></select></label>
+      <label>Area paths, one per line (includes everything under each)<textarea id="wlAreas" placeholder="Platform\\Team A" spellcheck="false">${esc(ui.wl.areas)}</textarea></label>
+      <label>People, one per line (email or exact ADO display name)<textarea id="wlPeople" placeholder="name@company.com" spellcheck="false">${esc(ui.wl.people)}</textarea></label>
+      <label>Window in days (7 to 180)<input type="number" id="wlDays" class="mono" min="7" max="180" value="${ui.wl.days}"></label>
+    </div>
+    <p class="hint" id="wlMsg" aria-live="polite" style="margin-top:.6rem"></p>
+    <div id="wlOut">${wlData ? wlResults(wlData) : ''}</div>
+    <footer><span class="grow"></span><button class="btn" data-close>Close</button><button class="btn" data-wl-export${wlData ? '' : ' disabled'}>Export to Excel</button><button class="btn primary" data-wl-run>${wlData ? 'Run again' : 'Run'}</button></footer></div>`,
+    sh => sh.addEventListener('click', async e => {
+      if (e.target.closest('[data-wl-export]')) return wlData && exportWorkload(wlData);
+      const go = e.target.closest('[data-wl-run]'); if (!go) return;
+      const msg = sh.querySelector('#wlMsg');
+      ui.wl.areas = sh.querySelector('#wlAreas').value.trim(); ui.wl.people = sh.querySelector('#wlPeople').value.trim();
+      ui.wl.days = Math.max(7, Math.min(180, Math.round(+sh.querySelector('#wlDays').value) || 42));
+      if (cols.length > 1) ui.wl.base = sh.querySelector('#wlCol').value;
+      saveUi();
+      if (!wlLines(ui.wl.areas).length && !wlLines(ui.wl.people).length){ msg.textContent = 'Add at least one area path or person.'; return; }
+      go.disabled = true; msg.textContent = 'Reading ADO history. This can take a minute for a big team...';
+      try {
+        wlData = await adoFetch('/workload', {days: ui.wl.days, base: ui.wl.base || undefined, areas: wlLines(ui.wl.areas), people: wlLines(ui.wl.people)});
+        msg.textContent = `${fmtMD(new Date(wlData.since + 'T12:00'))} to today.`;
+        sh.querySelector('#wlOut').innerHTML = wlResults(wlData);
+        sh.querySelector('[data-wl-export]').disabled = false; go.textContent = 'Run again';
+      } catch(err){
+        msg.textContent = adoUnreachable(err) ? ADO_DOWN : /Not found/.test(err.message) ? 'Your ADO helper is out of date. Download the new ado_helper.py from ADO Settings and restart it.' : err.message;
+      } finally { go.disabled = false; }
+    }));
+  try {
+    const h = await adoFetch('/health');
+    cols = h.collections || [];
+    const sel = $('#wlCol');
+    if (sel && cols.length > 1){
+      sel.innerHTML = cols.map(c => `<option${c === ui.wl.base ? ' selected' : ''}>${esc(c)}</option>`).join('');
+      $('#wlColWrap').hidden = false;
+    }
+    if (!h.workload && $('#wlMsg')) $('#wlMsg').textContent = 'Your ADO helper is out of date. Download the new ado_helper.py from ADO Settings and restart it.';
+  } catch(err){
+    if ($('#wlMsg')) $('#wlMsg').textContent = adoUnreachable(err) ? ADO_DOWN : err.message;
+  }
+}
+function exportWorkload(d){
+  if (!window.XLSX){ toast(NO_XLSX); return; }
+  XLSX.writeFile(buildWorkloadWorkbook(d), `workload-${todayStr()}.xlsx`);
+  toast('Workload tracker exported to Excel');
+}
+function buildWorkloadWorkbook(d){
+  const wb = XLSX.utils.book_new(), s = wlStats(d), N = 5000;
+  const add = (name, rows, widths) => {
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = widths.map(w => ({wch: w}));
+    XLSX.utils.book_append_sheet(wb, ws, name);
+    return ws;
+  };
+  const f = (formula, v) => ({t: typeof v === 'number' ? 'n' : 's', v, f: formula});
+  const pc = d.priorityChanges, escRows = pc.filter(c => c.escalation);
+  const daysBetween = (a, b) => a && b ? Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 864e5)) : '';
+  const weeks = Math.round(s.weeks * 10) / 10;
+
+  add('How To Use', [
+    ['Workload tracker'],
+    ['Generated', `${todayStr()} from ${d.base}`],
+    ['Window', `${d.since} to ${todayStr()} (${d.days} days)`],
+    ['Scope', [...d.areas.map(a => 'Area: ' + a), ...d.people.map(p => 'Person: ' + p)].join('; ')],
+    [],
+    ['Filled from ADO', 'Priority Inventory, Priority Changes, Escalations, Sprint Moves, Bugs Created.'],
+    ['You fill in', 'Capacity (team hours), Escalations: what got dropped, fire drill and rework hours. Bugs Created: mark Rework Yes for bugs caused by rushed work. Out-of-Scope Work and Risk Flags. Priority Changes: add rows from Teams with Source set to Teams.'],
+    ['Summary', 'Formulas on the Summary tab update as you add rows and hours. Lead with demand as % of capacity, priority changes per week, and % of capacity lost.'],
+    ['Escalation', `A priority change up to P${d.escalationPriority} from a lower priority.`],
+    ['Effort', 'Only Remaining Work (hours) counts toward demand. Items estimated in points or not at all are listed but not summed.'],
+    ['Tip', 'Name roles, not people, in anything you show (CEO request, Sales escalation). Keep the links as backup.']
+  ], [18, 110]);
+
+  const sum = add('Summary', [['Metric', 'Value', 'Notes']], [48, 12, 70]);
+  const rowsS = [
+    ['Window (weeks)', weeks, 'From the ADO pull'],
+    ['Priority changes (all sources)', f(`COUNTA('Priority Changes'!A2:A${N})`, pc.length), 'Includes Teams rows you add'],
+    ['...of those, from Teams', f(`COUNTIF('Priority Changes'!I2:I${N},"Teams")`, 0), ''],
+    ['Priority changes per week', f('IFERROR(B3/B2,0)', s.perWeek), ''],
+    [`Escalations to P${d.escalationPriority}`, f(`COUNTA(Escalations!A2:A${N})`, escRows.length), ''],
+    ['Avg days an item sat before escalation', f(`IFERROR(AVERAGE(Escalations!F2:F${N}),0)`, s.avgDays), 'Long waits point to a prioritization gap, not an execution gap'],
+    ['Sprint moves', f(`COUNTA('Sprint Moves'!A2:A${N})`, d.sprintMoves.length), 'Iteration changes in the window'],
+    ['Open high-priority items', f(`COUNTA('Priority Inventory'!B2:B${N})`, d.inventory.length), `ADO Priority ${d.highPriorities.join(', ')}`],
+    ['Remaining work on those (hrs)', f(`SUMIFS('Priority Inventory'!H2:H${N},'Priority Inventory'!I2:I${N},"RemainingWork")`, s.hours), ''],
+    ['...items with no hours estimate', f(`B9-COUNTIF('Priority Inventory'!I2:I${N},"RemainingWork")`, s.noHours), 'Demand is undercounted by these'],
+    ['Available team hours in window', f('Capacity!B2', 0), 'Fill in the Capacity tab'],
+    ['Demand as % of capacity', f('IFERROR(B10/B12,0)', 0), ''],
+    ['Bugs created', f(`COUNTA('Bugs Created'!A2:A${N})`, d.bugs.length), ''],
+    ['...marked as rework', f(`COUNTIF('Bugs Created'!I2:I${N},"Yes")`, 0), ''],
+    ['Fire drill hours', f(`SUM(Escalations!H2:H${N})`, 0), ''],
+    ['Rework hours', f(`SUM(Escalations!I2:I${N})`, 0), ''],
+    ["Hours on other teams' work", f(`SUM('Out-of-Scope Work'!E2:E${N})`, 0), ''],
+    ['% of capacity lost to fire drills, rework, out-of-scope', f('IFERROR((B16+B17+B18)/B12,0)', 0), ''],
+    ['Risks flagged in advance', f(`COUNTA('Risk Flags'!A2:A${N})`, 0), '']
+  ];
+  XLSX.utils.sheet_add_aoa(sum, rowsS, {origin: 'A2'});
+  ['B5', 'B7', 'B13', 'B19'].forEach(c => { if (sum[c]) sum[c].z = c === 'B7' ? '0' : c === 'B5' ? '0.0' : '0%'; });
+
+  const cap = add('Capacity', [
+    ['Window (weeks)', weeks, 'Same window as the ADO pull'],
+    ['Total available hours', f('SUM(G5:G24)', 0)],
+    [],
+    ['Team Member', 'Hours / Week', '% Support / On-call (0.2 = 20%)', '% Meetings / Overhead', 'PTO Hours in Window', 'Available Hrs / Week', 'Available Hrs in Window']
+  ], [24, 13, 26, 22, 18, 18, 22]);
+  const capRows = [];
+  for (let r = 5; r <= 24; r++) capRows.push(['', '', '', '', '', f(`IF(B${r}="","",B${r}*(1-C${r}-D${r}))`, ''), f(`IF(B${r}="","",MAX(0,F${r}*$B$1-E${r}))`, '')]);
+  XLSX.utils.sheet_add_aoa(cap, capRows, {origin: 'A5'});
+
+  add('Priority Inventory', [['Your Rank', 'ID', 'Title', 'Type', 'State', 'Priority', 'Assigned To', 'Effort', 'Effort Field', 'Iteration', 'Created', 'Due', 'Link'],
+    ...d.inventory.map(i => ['', i.id, i.title, i.type, i.state, i.priority ?? '', i.assignedTo, i.effort ?? '', i.effortField, i.iteration, i.created || '', i.due || '', i.url])],
+    [9, 8, 44, 12, 11, 8, 20, 8, 15, 22, 11, 11, 40]);
+  add('Priority Changes', [['Date', 'ID', 'Title', 'From', 'To', 'Direction', 'Escalation', 'Changed By', 'Source', 'Evidence'],
+    ...pc.map(c => [c.date, c.id, c.title, c.from, c.to, c.raised ? 'Raised' : 'Lowered', c.escalation ? 'Yes' : '', c.by, 'ADO', c.url])],
+    [11, 8, 44, 6, 6, 10, 10, 20, 8, 40]);
+  add('Escalations', [['Date Escalated', 'ID', 'Title', 'Escalated By', 'Date Created', 'Days Before Escalation', 'What Got Dropped', 'Fire Drill Hours', 'Rework Hours After', 'Link'],
+    ...escRows.map(c => [c.date, c.id, c.title, c.by, c.created || '', daysBetween(c.created, c.date), '', '', '', c.url])],
+    [13, 8, 40, 20, 12, 12, 30, 12, 12, 40]);
+  add('Sprint Moves', [['Date', 'ID', 'Title', 'From', 'To', 'Moved By', 'Link'],
+    ...d.sprintMoves.map(m => [m.date, m.id, m.title, m.from, m.to, m.by, m.url])],
+    [11, 8, 40, 24, 24, 20, 40]);
+  add('Bugs Created', [['Created', 'ID', 'Title', 'Priority', 'State', 'Created By', 'Assigned To', 'Area', 'Rework? (Yes/No)', 'Caused By (ID)', 'Link'],
+    ...d.bugs.map(b => [b.created || '', b.id, b.title, b.priority ?? '', b.state, b.createdBy, b.assignedTo, b.area, '', '', b.url])],
+    [11, 8, 40, 8, 10, 18, 18, 22, 15, 14, 40]);
+  add('Out-of-Scope Work', [['Date', 'Task', 'Team That Owns It', 'Why We Did It', 'Hours', 'Evidence']], [11, 36, 20, 36, 8, 36]);
+  add('Risk Flags', [['Date Raised', 'Item', 'Risk You Flagged', 'Raised To', 'Channel', 'What Happened', 'Evidence']], [12, 30, 40, 18, 12, 20, 36]);
+  return wb;
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) adoSync(false); });
 window.addEventListener('focus', () => adoSync(false));
@@ -2879,7 +3055,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localho
 }
 
 /* test hook: lets automated checks call the model without the UI */
-window.__prioritizer = {get state(){ return state; }, set state(s){ state = s; }, adoApply, adoPick, adoReview, adoSync, ui, sanitize, migrateTask, urgency, score, tier, isStale, eKey, vKey, parseQuick, capacityCut, buildWorkbook, parseWorkbook, doImport, render, commit, triageQueue, takeSnap, setSnap: s => { snap = s; }, engCheck, get eng(){ return eng; }};
+window.__prioritizer = {get state(){ return state; }, set state(s){ state = s; }, adoApply, adoPick, adoReview, adoSync, ui, sanitize, migrateTask, urgency, score, tier, isStale, eKey, vKey, parseQuick, capacityCut, buildWorkbook, buildWorkloadWorkbook, wlStats, workloadOpen, parseWorkbook, doImport, render, commit, triageQueue, takeSnap, setSnap: s => { snap = s; }, engCheck, get eng(){ return eng; }};
 
 applyTheme();
 applySide();

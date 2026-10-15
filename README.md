@@ -103,6 +103,17 @@ A Blocking PR where every other required reviewer has already approved shows **L
 
 **Setup:** run `py ado_helper.py --add-pr-source` and enter each collection URL and project to watch, optionally limited to some repos. This can be a different collection than your work items, and you can add more than one. Your PAT also needs **Code (Read)**, plus **Project and Team (Read)** for team PRs. `py ado_helper.py --test` lists the PRs it finds by tier and says which scope is missing if one is. In `ado-helper.json`, `pr_teams` limits which of your teams count (empty means all of them).
 
+### Workload report
+
+A read-only, team-wide report for capacity conversations: how often priorities change, what got escalated, and how much high-priority work is open. Open it from the ADO button > **Workload report**.
+
+- **Scope:** area paths (everything under each) and/or people (email or exact ADO display name), plus a window of 7 to 180 days. If your helper knows more than one collection, pick one.
+- **What it pulls:** every Priority change in the window with who made it, escalations (raised to P1 from a lower priority), Iteration Path changes (sprint moves), open P1/P2 items with Remaining Work, and bugs created.
+- **On screen:** the headline numbers, plus who made the most priority changes.
+- **Export to Excel:** `workload-<date>.xlsx`, the Workload tracker with Priority Inventory, Priority Changes, Escalations, Sprint Moves and Bugs Created filled in from ADO. You fill in Capacity, fire drill and rework hours, which bugs were rework, Out-of-Scope Work and Risk Flags, and add Teams evidence as Priority Changes rows with Source set to Teams. The Summary tab is formulas, so it updates as you add rows.
+
+Needs helper 1.2.0 or later. Settings in `ado-helper.json`: `high_priorities` (default 1 and 2), `escalation_priority` (default 1), `bug_types`, `workload_types` (empty means the same as `types`), `effort_fields`, and `workload_max_items` (how many changed items get their history read, default 1500). Only collections already in `ado-helper.json` can be queried. Work Items (Read) is enough.
+
 ## eng-agents dashboard
 
 The **Dashboard** view shows your [eng-agents](https://github.com/adavidson21/eng-agents) live dashboard right here, in Prioritizer's theme. Nothing about your work is hosted anywhere: the dashboard runs on your computer at `127.0.0.1`, and this page talks to it only after you open Dashboard the first time.
