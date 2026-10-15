@@ -2,6 +2,7 @@
    swatches, toast, tooltip, and the centered card (.engcard) for setup and empty states.
    Load after themes.css and before an app's own styles. */
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer;background:none;border:0;padding:0}
 svg{display:block}

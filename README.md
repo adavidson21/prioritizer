@@ -28,7 +28,11 @@ The hub uses the dashboard's shell API (`/api/shell/*`) and a few frame messages
 
 ## Install it as a desktop app
 
-In Chrome or Edge, open the hub and use the Install button in the address bar. It opens in its own window and works offline. It installs per user from the browser, with no admin rights or executable. If Install never appears on a work laptop, your company's browser policy may block web app installs. On a phone, use "Add to Home Screen".
+In Chrome or Edge, open Workshop and click **Install** on the rail (or the install icon in the address bar). Like Google Drive's desktop app, it then opens in its own window with a dock or taskbar icon, works offline, and opening it again brings back the window you already have. Right-click the icon for **Prioritizer** and **Dashboard** shortcuts.
+
+It installs per user from the browser, with no admin rights or executable. If Install never appears on a work laptop, your company's browser policy may block web app installs. On a phone, use "Add to Home Screen".
+
+The install dialog shows `screenshots/wide.png` and `screenshots/narrow.png` (sample data). Regenerate them when the look changes a lot.
 
 ## Layout
 
