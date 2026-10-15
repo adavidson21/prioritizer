@@ -113,13 +113,15 @@ The **Dashboard** view shows your [eng-agents](https://github.com/adavidson21/en
    ```json
    "dashboard": { "shellOrigins": ["https://prioritizer.alexisdavidson.org"] }
    ```
-2. Start the live dashboard as usual (`Start-LiveDashboard.ps1` from your workspace).
+2. Start the live dashboard: run `/dashboard` in opencode in your workspace. If it was already running, close its minimized window first so it picks up the new setting.
 3. Open **Dashboard** and click Connect. If the browser asks to allow access to apps on this device, choose Allow.
+
+**Every day, including after a restart:** run `/dashboard` in opencode, then open Dashboard here. Once you have connected, this page checks for it every 30 seconds and whenever you come back to the tab, so it reconnects on its own.
 
 **What you get:**
 
 - The full live dashboard as a view: run buttons, agent replies, prompts, autopilot. It follows your Prioritizer theme. **Open in its own tab** opens it on its own.
-- ADO tasks show their eng-agents stage next to the ADO chip (Spec, Plan, Build 2/5, Review, and so on). Amber means it needs you. Click it to jump to that item in the Dashboard.
+- ADO tasks show their eng-agents stage next to the ADO chip (Spec, Plan, Build 2/5, Review, and so on). Amber means it needs you, including when autopilot stops for you; a pulsing dot means an agent or autopilot is working. Hover for the next step in plain words, or click to jump to that item in the Dashboard.
 - An ADO task not started yet gets **Start as feature** or **Start as bug** in its details. That runs `/start` in opencode for you.
 
 Stages refresh every 30 seconds while the page is open, and right away when you switch back to it. On a device without the dashboard (your phone, say) nothing changes. **Disconnect** is on the Dashboard view.
