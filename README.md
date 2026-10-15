@@ -26,6 +26,7 @@ Your manual rank always has the final say. **Suggest order** previews a score-ba
 - **People:** one card per person, split into "Waiting on them" and "To discuss or do". Handy as a 1:1 agenda.
 - **Archive:** a weekly recap you can copy into a status update, with how your work split across quadrants, plus finished and won't-do tasks.
 - **Dashboard:** your eng-agents live dashboard, inside Prioritizer. See below.
+- **Reports:** team-wide ADO reports (priority churn, other teams' work, sprint carryover and scope churn, load, aging) with an Excel export. See below.
 
 The **Scope** in the sidebar (All lists, a list, or a section) filters every view.
 
@@ -46,7 +47,7 @@ Example: `Review promo doc @Brandon !3 ~s ^fri #eng`
 
 ## Keyboard
 
-`1` to `6` switch views, `J`/`K` move through tasks, `Enter` opens details, `X` completes, `T` toggles Today, `Alt+Up`/`Alt+Down` reorder, `Esc` closes. In Triage: `1` to `4` value, `Q W E R T` effort, `D` due, `U` urgent, `Space` Today, `Enter` save and next, `S` skip, `0` won't do. Press `?` for the full list.
+`1` to `7` switch views, `J`/`K` move through tasks, `Enter` opens details, `X` completes, `T` toggles Today, `Alt+Up`/`Alt+Down` reorder, `Esc` closes. In Triage: `1` to `4` value, `Q W E R T` effort, `D` due, `U` urgent, `Space` Today, `Enter` save and next, `S` skip, `0` won't do. Press `?` for the full list.
 
 ## Themes
 
@@ -102,6 +103,31 @@ A Blocking PR where every other required reviewer has already approved shows **L
 - Drafts and your own PRs are skipped. Deleting a PR task keeps it from coming back.
 
 **Setup:** run `py ado_helper.py --add-pr-source` and enter each collection URL and project to watch, optionally limited to some repos. This can be a different collection than your work items, and you can add more than one. Your PAT also needs **Code (Read)**, plus **Project and Team (Read)** for team PRs. `py ado_helper.py --test` lists the PRs it finds by tier and says which scope is missing if one is. In `ado-helper.json`, `pr_teams` limits which of your teams count (empty means all of them).
+
+## Reports
+
+Team-wide, read-only reports from ADO for capacity conversations. Open **Reports** in the sidebar (shortcut `7`).
+
+**Team profile (once):** area paths your team owns (everything under each counts) and your people (email or exact ADO display name). Use both to see work your people do for other teams. It saves on this device. Change it with the dots button.
+
+**Reports:**
+
+| Report | What it shows |
+| --- | --- |
+| Priority churn | Every Priority change in the window, per week, who made them, and escalations (raised to P1 from lower) with how long the item sat first |
+| Other teams' work | Items assigned to your people that live outside your area paths, by owning area, flagged when escalated |
+| Sprint carryover | Items moved between sprints, how many times, their path, and open items still sitting in a finished sprint |
+| Sprint scope churn | Items added, created or removed after a sprint started (the first day counts as planning), plus items pulled onto or off your team |
+| Load by person | Open items per person by priority, hours left and oldest item; profile people with nothing open still show |
+| Aging and throughput | Open P1/P2 work by age, and items closed per week against new high-priority work per week |
+
+Pick a window (14 to 180 days) and **Refresh**. The last pull is cached, so Reports opens instantly next time.
+
+**Export** saves `team-reports-<date>.xlsx`: the Workload tracker with every report pre-filled from ADO, a Summary tab of formulas, and blank columns for what ADO can't see (capacity, fire drill and rework hours, why other-team work happened, Teams evidence, risk flags).
+
+**How it works:** the ADO helper (1.2.0 or later) has one read-only endpoint, `POST /dataset`, that returns the team's work items, their priority, sprint, assignment and state changes in the window, and sprint dates. Every report is computed in the app from that pull, so adding a report doesn't need a helper change. Only collections already in `ado-helper.json` can be queried. Work Items (Read) is enough.
+
+Settings in `ado-helper.json`: `high_priorities` (default 1 and 2), `escalation_priority` (default 1), `bug_types`, `workload_types` (empty means the same as `types`), `effort_fields` (hours count Remaining Work only), and `workload_max_items` (how many changed items get their history read, default 1500).
 
 ## eng-agents dashboard
 
