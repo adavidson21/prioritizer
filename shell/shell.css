@@ -1,4 +1,4 @@
-/* EM Hub shell: the app rail and the panes each app lives in. Colors come from ../shared/themes.css,
+/* Workshop shell: the app rail and the panes each app lives in. Colors come from ../shared/themes.css,
    buttons, menus and toast from ../shared/ui.css. */
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden}

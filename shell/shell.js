@@ -1,4 +1,4 @@
-/* EM Hub shell: the app rail, routing between apps, the theme picker, the toast, and messages from
+/* Workshop shell: the app rail, routing between apps, the theme picker, the toast, and messages from
    the apps inside it.
 
    To add a page, add an entry to APPS:
@@ -12,7 +12,6 @@
    (see the Dashboard in dashboard.js). */
 (function () {
   'use strict';
-  const LAST_KEY = 'em.app';
   const $ = s => document.querySelector(s);
   const svg = d => `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 
@@ -46,7 +45,7 @@
   const THEME_ICON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="6.5"/><path d="M10 3.5a6.5 6.5 0 0 0 0 13z" fill="currentColor"/></svg>';
   const MARK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6.5" fill="currentColor"/><g fill="var(--on-accent)"><rect x="5" y="5" width="6.2" height="6.2" rx="1.8"/><rect x="12.8" y="5" width="6.2" height="6.2" rx="1.8" opacity=".38"/><rect x="5" y="12.8" width="6.2" height="6.2" rx="1.8" opacity=".38"/><rect x="12.8" y="12.8" width="6.2" height="6.2" rx="1.8" opacity=".38"/></g></svg>';
   function renderRail() {
-    $('#rail').innerHTML = `<a class="mark" href="#/" aria-label="EM Hub">${MARK}</a>`
+    $('#rail').innerHTML = `<a class="mark" href="#/" aria-label="Workshop">${MARK}</a>`
       + APPS.map((a, i) => `<a class="app-btn" href="#/${a.id}" data-app="${a.id}" title="${a.label} (Alt+${i + 1})"><span aria-hidden="true">${svg(a.icon)}</span><span class="lbl">${a.label}</span></a>`).join('')
       + `<span class="grow"></span><button class="app-btn" id="themeBtn" aria-label="Theme" title="Theme">${THEME_ICON}</button>`;
   }
@@ -58,19 +57,17 @@
     });
   }
 
-  /* ---------- routing: #/<app>[/<arg>] ---------- */
-  function lastApp() { try { const v = localStorage.getItem(LAST_KEY); return byId[v] ? v : APPS[0].id; } catch (e) { return APPS[0].id; } }
+  /* ---------- routing: #/<app>[/<arg>]. The first app (home) has the bare address, no #. ---------- */
+  const HOME = APPS[0].id;
   function parseHash() {
     const [id, ...rest] = location.hash.replace(/^#\/?/, '').split('/');
     return {id: byId[id] ? id : null, arg: rest.length ? decodeURIComponent(rest.join('/')) : ''};
   }
   function route() {
-    const {id, arg} = parseHash();
-    if (!id) { history.replaceState(null, '', '#/' + lastApp()); return route(); }
+    const parsed = parseHash(), arg = parsed.arg, id = parsed.id || HOME;
     const app = byId[id];
     if (current && current !== id && byId[current].hide) byId[current].hide();
     current = id;
-    try { localStorage.setItem(LAST_KEY, id); } catch (e) { /* private mode */ }
     let pane = document.getElementById('pane-' + id);
     if (!pane) {
       pane = document.createElement('section');
@@ -80,10 +77,11 @@
     document.querySelectorAll('.pane').forEach(p => { p.hidden = p !== pane; });
     if (!mounted.has(id)) { app.mount(pane); mounted.add(id); }
     app.show(arg);
-    document.title = `${app.label} · EM Hub`;
+    document.title = `${app.label} · Workshop`;
     markRail();
-    // Drop the one-time argument so a reload doesn't repeat it.
-    if (arg) history.replaceState(null, '', '#/' + id);
+    // Tidy the address: home is the bare page, and a one-time argument is dropped so a reload doesn't repeat it.
+    const clean = id === HOME ? location.pathname + location.search : '#/' + id;
+    if (location.hash !== (id === HOME ? '' : '#/' + id)) history.replaceState(null, '', clean);
   }
   function go(id, arg) {
     const h = '#/' + id + (arg ? '/' + encodeURIComponent(arg) : '');

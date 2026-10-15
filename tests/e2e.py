@@ -89,7 +89,7 @@ def main():
         pg.route('**/fonts.g*/**', lambda r: r.abort())
 
         pg.goto(HUB + '/'); pg.wait_for_timeout(800)
-        check('opens on Prioritizer', pg.url.endswith('#/prioritizer'))
+        check('opens on Prioritizer at the plain address', pg.url == HUB + '/' and pg.title() == 'Prioritizer · Workshop')
         frame = next(f for f in pg.frames if f.url.endswith('/prioritizer/'))
         frame.on('pageerror', lambda e: errors.append(str(e)))
         check('Prioritizer hides its theme button in the hub', frame.evaluate("document.getElementById('themeBtn').hidden"))
@@ -103,7 +103,7 @@ def main():
 
         pg.keyboard.press('Alt+1'); pg.wait_for_timeout(1500)
         chip = frame.locator('.chip.eng')
-        check('Alt+1 returns to Prioritizer', pg.url.endswith('#/prioritizer'))
+        check('Alt+1 returns to Prioritizer, plain address', pg.url == HUB + '/')
         check('ADO task shows its stage', chip.count() == 1 and 'Build 2/5' in chip.inner_text())
         chip.click(); pg.wait_for_timeout(1000)
         check('stage chip opens the Dashboard at that item', pg.url.endswith('#/dashboard') and {'type': 'eng-focus', 'id': '123'} in LOG)
