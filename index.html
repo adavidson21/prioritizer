@@ -3174,7 +3174,7 @@ window.addEventListener('focus', () => adoSync(false));
 /* ---------- installable desktop app ---------- */
 let swReloading = false;
 /* ---------- eng-agents live dashboard: the Dashboard view and work item stages ----------
-   The live dashboard (eng-agents Start-LiveDashboard.ps1) runs on this computer at 127.0.0.1. Nothing is
+   The live dashboard (started with /dashboard in opencode) runs on this computer at 127.0.0.1. Nothing is
    fetched until you open Dashboard once. After that, ADO tasks show where their work item stands, and a
    task can start its work item. The dashboard only answers sites listed in its config.json
    ("dashboard": { "shellOrigins": [...] }), so the page and the dashboard both have to agree. */
@@ -3221,6 +3221,8 @@ function engSchedule(){
 document.addEventListener('visibilitychange', () => { if (!document.hidden && ui.eng.on) engCheck(); });
 
 function engItem(adoId){ return eng.status === 'ok' ? eng.byId.get(String(adoId)) || null : null; }
+const engStep = n => (n && (n.text || n.action || n.command)) || '';
+const engAuto = (i, st) => !!i.autopilot && i.autopilot.status === st;
 function engLabel(i){
   if (i.paused) return 'Paused';
   if (i.waiting) return 'Agent is asking';
@@ -3232,9 +3234,11 @@ function engTip(i){
   const n = i.next || {};
   if (i.paused) return 'Paused in eng-agents. Open the dashboard to resume.';
   if (i.waiting) return 'The agent is waiting for an answer. Open the dashboard.';
-  if (n.needsYou) return `Needs you: ${n.action || n.command || 'see the dashboard'}`;
+  if (engAuto(i, 'waiting')) return `Autopilot needs you: ${i.autopilot.message || 'see the dashboard'}`;
+  if (engAuto(i, 'running')) return `Autopilot is building it. Now: ${engStep(n) || 'working'}`;
+  if (n.needsYou) return `Needs you: ${engStep(n) || 'see the dashboard'}`;
   if (i.agent === 'busy') return 'The agent is working on it';
-  return n.command ? `Next: ${n.command}` : (n.action || 'Open in the dashboard');
+  return engStep(n) ? `Next: ${engStep(n)}` : 'Open in the dashboard';
 }
 function engChip(adoId){
   const i = engItem(adoId);
@@ -3245,14 +3249,21 @@ function engChip(adoId){
       ? `<button class="chip eng gate" data-act="eng" data-ado="${esc(adoId)}" data-tip="${esc(st.error || (st.waiting ? '/start is asking you something. Open the dashboard.' : 'Finishing /start'))}">Starting</button>`
       : `<button class="chip eng" data-act="eng" data-ado="${esc(adoId)}" data-tip="Running /start in opencode"><i class="live"></i>Starting</button>`;
   }
-  const gate = i.paused || i.waiting || (i.next && i.next.needsYou) || i.blocked;
-  return `<button class="chip eng${gate ? ' gate' : ''}" data-act="eng" data-ado="${esc(adoId)}" data-tip="${esc(engTip(i))}">${i.agent === 'busy' ? '<i class="live"></i>' : ''}${esc(engLabel(i))}</button>`;
+  const gate = i.paused || i.waiting || engAuto(i, 'waiting') || (i.next && i.next.needsYou && !engAuto(i, 'running')) || i.blocked;
+  const live = i.agent === 'busy' || engAuto(i, 'running');
+  return `<button class="chip eng${gate ? ' gate' : ''}" data-act="eng" data-ado="${esc(adoId)}" data-tip="${esc(engTip(i))}">${live ? '<i class="live"></i>' : ''}${esc(engLabel(i))}</button>`;
 }
 function engDrawer(t){
   if (!ui.eng.on) return '';
   if (eng.status !== 'ok') return `<div class="deng"><span>Live dashboard not reachable.</span><span class="grow"></span><button class="lnk" data-d="eng-open">Open Dashboard</button></div>`;
   const i = engItem(t.ado.id), n = i && i.next || {};
-  if (i) return `<div class="deng"><span>eng-agents <b>${esc(engLabel(i))}</b>${n.command ? ` · next <code>${esc(n.command)}</code>` : n.action ? ` · ${esc(n.action)}` : ''}</span><span class="grow"></span><button class="btn" data-d="eng-open">Open in Dashboard</button></div>`;
+  if (i){
+    const step = engStep(n);
+    const what = engAuto(i, 'waiting') ? ` · <b>Autopilot needs you</b>${i.autopilot.message ? `: ${esc(i.autopilot.message)}` : ''}`
+      : engAuto(i, 'running') ? ` · autopilot is on it${step ? `: ${esc(step)}` : ''}`
+      : step ? ` · next: ${esc(step)}` : '';
+    return `<div class="deng"><span>eng-agents <b>${esc(engLabel(i))}</b>${what}</span><span class="grow"></span><button class="btn" data-d="eng-open">Open in Dashboard</button></div>`;
+  }
   const st = eng.starting.get(String(t.ado.id));
   if (st) return `<div class="deng"><span><b>Starting</b> in opencode${st.error ? `: ${esc(st.error)}` : '...'}</span><span class="grow"></span><button class="lnk" data-d="eng-open">Watch it</button></div>`;
   if (t.done) return '';
@@ -3334,9 +3345,9 @@ function renderDash(){
     <h2>${setup ? 'Connect your work dashboard' : "Can't reach the live dashboard"}</h2>
     ${eng.error ? `<p>${esc(eng.error)}</p>` : `<p>The eng-agents live dashboard runs on this computer. This page shows it here and puts each ADO task's stage next to it. Nothing leaves your computer.</p>`}
     <ol>
-      <li>In your workspace, start it: <code>Start-LiveDashboard.ps1</code> from your eng-agents dashboard folder. Keep that window open.</li>
-      <li>Let it answer this site. In <code>~/.config/eng-agents/config.json</code> add <code>"dashboard": { "shellOrigins": ["${esc(location.origin)}"] }</code>, then restart it.</li>
-      <li>Click Connect. If the browser asks to allow access to apps on this device, choose Allow.</li>
+      <li>Start it: run <code>/dashboard</code> in opencode in your workspace. It opens in its own minimized window.</li>
+      ${setup ? `<li>Let it answer this site. In <code>~/.config/eng-agents/config.json</code> add <code>"dashboard": { "shellOrigins": ["${esc(location.origin)}"] }</code>. If it was already running, close its window and run <code>/dashboard</code> again.</li>` : ''}
+      <li>${setup ? 'Click Connect' : 'This page checks again every 30 seconds, or click Try again'}. If the browser asks to allow access to apps on this device, choose Allow.</li>
     </ol>
     <div class="acts"><span class="fld"><label for="engPort">Port</label><input type="number" id="engPort" class="mono" min="1024" max="65535" value="${ui.eng.port}"></span>
       <span class="grow" style="flex:1"></span>${ui.eng.on ? '<button class="btn text-danger" data-eng="off">Disconnect</button>' : ''}<button class="btn primary" data-eng="connect">${setup ? 'Connect' : 'Try again'}</button></div>
