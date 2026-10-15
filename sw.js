@@ -1,9 +1,17 @@
-/* Prioritizer service worker: lets the app install as its own window and open offline.
-   Bump CACHE when shipping a change so open windows get the "New version" toast. */
-const CACHE = 'prioritizer-2.5.0';
-const SHELL = ['./', './index.html', './themes.css', './manifest.webmanifest',
+/* EM Hub service worker: lets the hub install as its own window and open offline.
+   Bump CACHE when shipping a change so open windows get the "New version" toast.
+   Add new files to SHELL so they work offline. */
+const CACHE = 'emhub-3.0.0';
+const SHELL = [
+  './', './index.html', './manifest.webmanifest',
+  './shell/shell.css', './shell/shell.js', './shell/dashboard.js',
+  './shared/themes.css', './shared/ui.css', './shared/theme.js', './shared/eng-client.js', './shared/sw-register.js',
+  './prioritizer/', './prioritizer/index.html', './prioritizer/app.css',
+  ...['constants', 'util', 'model', 'state', 'quick-add', 'actions', 'render', 'views', 'drawer', 'overlays',
+    'command-bar', 'excel', 'drag-drop', 'people', 'events', 'folder-sync', 'ado', 'reports', 'eng', 'main'].map(f => `./prioritizer/js/${f}.js`),
   './icons/favicon.svg', './icons/favicon-32.png', './icons/app-192.png', './icons/app-512.png',
-  './icons/app-maskable-512.png', './icons/app-touch-180.png'];
+  './icons/app-maskable-512.png', './icons/app-touch-180.png'
+];
 const SWR_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
@@ -12,7 +20,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
-    .then(keys => Promise.all(keys.filter(k => k.startsWith('prioritizer-') && k !== CACHE).map(k => caches.delete(k))))
+    .then(keys => Promise.all(keys.filter(k => (k.startsWith('emhub-') || k.startsWith('prioritizer-')) && k !== CACHE).map(k => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
@@ -23,20 +31,22 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  const isShellPage = url.origin === location.origin && (url.pathname.endsWith('/') || url.pathname.endsWith('/index.html'));
-  if (req.mode === 'navigate' || isShellPage) return e.respondWith(networkFirst(req));
+  const sameOrigin = url.origin === location.origin;
+  // Pages (the shell, Prioritizer) and their code: network first, so a reload always gets the latest.
+  if (req.mode === 'navigate' || (sameOrigin && /(\/|\.html|\.js|\.css)$/.test(url.pathname))) return e.respondWith(networkFirst(req));
   if (SWR_HOSTS.includes(url.hostname)) return e.respondWith(staleWhileRevalidate(req));
-  if (url.origin === location.origin) return e.respondWith(caches.match(req).then(hit => hit || fetch(req)));
+  if (sameOrigin) return e.respondWith(caches.match(req, {ignoreSearch: true}).then(hit => hit || fetch(req)));
 });
 
 async function networkFirst(req){
   const cache = await caches.open(CACHE);
   try {
     const res = await fetch(req);
-    if (res && res.ok) cache.put('./index.html', res.clone());
+    if (res && res.ok) cache.put(req, res.clone());
     return res;
   } catch (err) {
-    return (await cache.match('./index.html')) || (await cache.match('./')) || Response.error();
+    // Pages are cached without their query (?embed=1), so match ignoring it.
+    return (await cache.match(req, {ignoreSearch: true})) || Response.error();
   }
 }
 

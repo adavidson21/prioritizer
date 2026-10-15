@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Prioritizer",
-  "short_name": "Prioritizer",
-  "description": "Decide what to work on next.",
+  "name": "EM Hub",
+  "short_name": "EM Hub",
+  "description": "Prioritizer and your eng-agents work dashboard in one place.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
