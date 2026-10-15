@@ -1,4 +1,4 @@
-/* Shared theme handling for the EM Hub shell and every app inside it.
+/* Shared theme handling for the Workshop shell and every app inside it.
    Load it synchronously in <head>, after the theme-color meta tag: it sets data-theme before first
    paint, so there is no flash. The colors themselves live in themes.css. Keep THEMES and SWATCH
    in step with it (`node tests/check-themes.mjs` checks).

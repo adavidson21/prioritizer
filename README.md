@@ -1,11 +1,11 @@
-# EM Hub
+# Workshop
 
 An engineering manager's hub: one page with a rail of apps, sharing one theme.
 
 - **Prioritizer** decides what to work on next, and has team-wide ADO **Reports** for capacity conversations. User guide: [prioritizer/README.md](prioritizer/README.md).
 - **Dashboard** shows your [eng-agents](https://github.com/adavidson21/eng-agents) live dashboard, which runs on your own computer.
 
-Switch apps from the rail, or with `Alt+1` and `Alt+2`. Each app keeps its state while you're in another one. Links: `#/prioritizer`, `#/dashboard`, and `#/dashboard/<work item id>` to open the Dashboard at an item.
+Switch apps from the rail, or with `Alt+1` and `Alt+2`. Each app keeps its state while you're in another one. Prioritizer is the plain address; the Dashboard is `#/dashboard`, and `#/dashboard/<work item id>` opens it at an item.
 
 Everything stays on your device. There are no accounts and no server: Prioritizer saves in your browser, and the Dashboard talks to `127.0.0.1` only.
 
@@ -83,4 +83,4 @@ python tests/e2e.py              the hub in headless Chromium against a mock das
 
 GitHub Pages serves the repo root. When you ship a change, bump `CACHE` in `sw.js` so open windows offer a "New version" reload.
 
-The hub lives at https://adavidson21.github.io/prioritizer/ (Prioritizer on its own: `/prioritizer/prioritizer/`). It is the same address Prioritizer used before, so tasks saved in the browser carry over. If the address changes, update `shellOrigins` (above) and `allowed_origins` in `prioritizer/ado-helper/ado_helper.py` (or your `ado-helper.json`); browser storage does not move between addresses, so export from the old one and import on the new one.
+Workshop lives at https://adavidson21.github.io/workshop/ (Prioritizer on its own: `/workshop/prioritizer/`). Same github.io site as before, so tasks saved in the browser carry over. If the site moves to another host, update `shellOrigins` (above) and `allowed_origins` in `prioritizer/ado-helper/ado_helper.py` (or your `ado-helper.json`); browser storage does not move between hosts, so export from the old one and import on the new one.

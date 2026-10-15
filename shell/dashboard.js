@@ -1,4 +1,4 @@
-/* EM Hub: the Dashboard page. Shows the eng-agents live dashboard (127.0.0.1) in a frame, kept
+/* Workshop: the Dashboard page. Shows the eng-agents live dashboard (127.0.0.1) in a frame, kept
    loaded once opened, in the hub's theme. Before it can connect, it shows the setup steps.
 
    Messages with the dashboard frame (the eng-agents side is in dashboard.template.html):
